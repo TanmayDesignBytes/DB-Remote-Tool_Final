@@ -1,0 +1,78 @@
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/satoshi-400.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/satoshi-500.ttf") format("truetype");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/satoshi-700.ttf") format("truetype");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  font-size: calc(100vw * 16 / 1512);
+  box-sizing: border-box;
+  height: 100%;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: inherit;
+}
+
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+}
+
+.dashboard-panel-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.dashboard-panel-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.login-bg {
+  min-height: 100vh;
+  width: 100%;
+  background:
+    linear-gradient(
+      rgba(245, 248, 255, 0.72),
+      rgba(245, 248, 255, 0.72)
+    ),
+    radial-gradient(
+      circle at center,
+      rgba(255, 255, 255, 0.72) 0%,
+      rgba(255, 255, 255, 0.38) 42%,
+      rgba(255, 255, 255, 0.12) 70%
+    ),
+    url("/assets/login-bg.png");
+  background-size: cover, cover, cover;
+  background-position: center, center, center;
+  background-repeat: no-repeat, no-repeat, no-repeat;
+}
