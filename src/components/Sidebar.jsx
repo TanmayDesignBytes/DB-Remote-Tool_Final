@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { cn } from "../lib/utils";
 
 const navItems = [
@@ -23,38 +23,83 @@ const navItems = [
 ];
 
 function Sidebar({ activeTab, onTabChange }) {
+  const navRef = useRef(null);
+  const tabRefs = useRef({});
+  const [activePillStyle, setActivePillStyle] = useState({
+    top: "0px",
+    opacity: 0,
+  });
+
+  useEffect(() => {
+    const activeNode = activeTab ? tabRefs.current[activeTab] : null;
+    const navNode = navRef.current;
+
+    if (!activeNode || !navNode) {
+      setActivePillStyle((current) => ({ ...current, opacity: 0 }));
+      return;
+    }
+
+    const nextTop = `${activeNode.offsetTop}px`;
+    setActivePillStyle({
+      top: nextTop,
+      opacity: 1,
+    });
+  }, [activeTab]);
+
   return (
     <aside className="absolute left-0 top-[4.25rem] z-10 flex h-[49.81rem] w-[6.56rem] shrink-0 pl-[1.5rem]">
-      <nav className="flex w-[4.25rem] flex-col items-center gap-[3.75rem] pt-[1.94rem]">
+      <nav
+        ref={navRef}
+        className="relative flex w-[4.25rem] flex-col items-center gap-[3.75rem] pt-[1.94rem]"
+      >
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 h-[3.125rem] w-[3.125rem] -translate-x-1/2 rounded-[3.125rem] border border-[#CDDDFD] bg-[#CDDDFD] shadow-[0_0.625rem_1.25rem_rgba(41,112,255,0.16)]"
+          style={{
+            top: activePillStyle.top,
+            opacity: activePillStyle.opacity,
+          }}
+        />
         {navItems.map((item) => {
           const isActive = activeTab === item.key;
           const Icon = item.Icon;
 
           return (
             <button
+              ref={(node) => {
+                if (node) {
+                  tabRefs.current[item.key] = node;
+                }
+              }}
               key={item.key}
               type="button"
               aria-pressed={isActive}
-              className="flex h-[4.875rem] w-[4.25rem] shrink-0 flex-col items-center gap-[0.25rem]"
+              className="relative z-[1] flex h-[4.875rem] w-[4.25rem] shrink-0 flex-col items-center gap-[0.25rem]"
               onClick={() => onTabChange(item.key)}
             >
               <span
                 className={cn(
-                  "flex h-[3.125rem] w-[3.125rem] items-center justify-center rounded-[3.125rem] border shadow-[0_0.125rem_0.5rem_rgba(16,24,40,0.06)] transition-colors duration-200",
+                  "flex h-[3.125rem] w-[3.125rem] items-center justify-center rounded-[3.125rem] border shadow-[0_0.125rem_0.5rem_rgba(16,24,40,0.06)]",
                   isActive
-                    ? "border-[#CDDDFD] bg-[#CDDDFD] text-[#2970FF]"
-                    : "border-[#D9D9D9] bg-white text-[#33363F]",
+                    ? "border-transparent bg-transparent text-[#2970FF] scale-100"
+                    : "border-[#D9D9D9] bg-white text-[#33363F] scale-[0.98] hover:border-[#D8E4FF] hover:bg-[#F8FBFF] hover:text-[#2970FF]",
                 )}
               >
-                <Icon className={cn("shrink-0", item.iconClassName)} />
+                <Icon
+                  className={cn(
+                    "shrink-0",
+                    isActive ? "scale-100" : "scale-[0.94]",
+                    item.iconClassName,
+                  )}
+                />
               </span>
 
               <span
                 className={cn(
-                  "font-inter text-[0.75rem] leading-[1.5rem] transition-colors duration-200",
+                  "font-inter text-[0.75rem] leading-[1.5rem]",
                   isActive
-                    ? "font-bold text-[#2970FF]"
-                    : "font-medium text-[#33363F]",
+                    ? "translate-y-0 font-bold text-[#2970FF]"
+                    : "translate-y-0.5 font-medium text-[#33363F]",
                 )}
               >
                 {item.label}

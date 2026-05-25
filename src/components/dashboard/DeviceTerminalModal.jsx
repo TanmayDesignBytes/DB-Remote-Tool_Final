@@ -2,6 +2,20 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { API_BASE_URL, sendTerminalCommand } from "../../lib/api.js";
 
+function BackIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-5 w-5" aria-hidden="true">
+      <path
+        d="M15 18L9 12L15 6"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function formatPrompt(session) {
   const host =
     String(session?.hostname || "raspberrypi")
@@ -76,8 +90,7 @@ function stripEcho(output, command) {
 }
 
 function prepareRemoteCommand(command, isTui) {
-  if (!isTui) return command;
-  if (/\bTERM=/.test(command)) return command;
+  if (!isTui || /\bTERM=/.test(command)) return command;
   return `export TERM=xterm && ${command}`;
 }
 
@@ -235,6 +248,12 @@ function getSpecialSequence(event) {
   return SPECIAL_KEY_MAP[upper] || FUNCTION_KEY_MAP[upper] || null;
 }
 
+function withTerminalSize(command, term) {
+  const cols = Math.max(Number(term?.cols) || 0, 80);
+  const rows = Math.max(Number(term?.rows) || 0, 24);
+  return `export COLUMNS=${cols} LINES=${rows}; stty cols ${cols} rows ${rows} 2>/dev/null; ${command}`;
+}
+
 export default function DeviceTerminalModal({ open, device, onClose }) {
   const terminalHostRef = useRef(null);
   const cmdBufRef = useRef("");
@@ -253,7 +272,12 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
   const terminalClosedSentRef = useRef(false);
   const lastSocketOutboundRef = useRef(null);
   const lastSocketInboundRef = useRef(null);
+  const onCloseRef = useRef(onClose);
   const [confirmClose, setConfirmClose] = useState(false);
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   const notifyTerminalClosed = () => {
     const socket = socketRef.current;
@@ -277,6 +301,12 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
     terminalClosedSentRef.current = true;
   };
 
+  const handleBackToDashboard = () => {
+    notifyTerminalClosed();
+    setConfirmClose(false);
+    onCloseRef.current?.();
+  };
+
   useEffect(() => {
     if (!open || !terminalHostRef.current || !device) return undefined;
 
@@ -296,9 +326,9 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
         cursorBlink: true,
         convertEol: true,
         scrollback: 2000,
-        fontFamily: '"Courier New", Consolas, monospace',
-        fontSize: 15,
-        lineHeight: 1.2,
+        fontFamily: 'Consolas, "Courier New", monospace',
+        fontSize: 14,
+        lineHeight: 1.16,
         cursorStyle: "block",
         theme: {
           background: "#000000",
@@ -332,6 +362,16 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
       term.focus();
       termRef.current = term;
       promptRef.current = formatPrompt(null).prompt;
+      cmdBufRef.current = "";
+      cursorPosRef.current = 0;
+      historyIndexRef.current = -1;
+      historyDraftRef.current = "";
+      interactiveRef.current = false;
+      pendingEchoRef.current = "";
+      socketReadyRef.current = false;
+      socketExpectedRef.current = false;
+      socketQueueRef.current = [];
+      terminalClosedSentRef.current = false;
       term.write(promptRef.current);
 
       const writeOutput = (raw) => {
@@ -349,7 +389,10 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
         }
       };
 
+      const resetTabState = () => {};
+
       const resetShellBuffer = () => {
+        resetTabState();
         cmdBufRef.current = "";
         cursorPosRef.current = 0;
         historyIndexRef.current = -1;
@@ -414,9 +457,31 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
         return true;
       };
 
+      const hasLiveSocket = () => Boolean(getSocket());
+      const prefersLiveSocket = () => socketExpectedRef.current;
+
+      const sendTerminalSize = () => {
+        if (!term.cols || !term.rows) return;
+        const payload = {
+          type: "terminal_resize",
+          deviceId: device.deviceIdentifier,
+          cols: term.cols,
+          columns: term.cols,
+          rows: term.rows,
+          source: "frontend",
+        };
+        console.log("[Terminal resize]", payload);
+        sendSocketMessage(payload);
+      };
+
+      const fitTerminal = () => {
+        fit.fit();
+        sendTerminalSize();
+      };
+
       const sendOrQueueSocketMessage = (payload) => {
         if (sendSocketMessage(payload)) return true;
-        if (!socketExpectedRef.current) return false;
+        if (!prefersLiveSocket()) return false;
         socketQueueRef.current.push(payload);
         return true;
       };
@@ -472,6 +537,10 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
             socketReadyRef.current = true;
             lastSocketInboundRef.current = { type: "socket_open" };
             notifyTerminalLifecycle("terminal_started");
+            fitTerminal();
+            sendTerminalSize();
+            window.setTimeout(fitTerminal, 120);
+            window.setTimeout(fitTerminal, 360);
             flushSocketQueue();
           });
 
@@ -554,14 +623,14 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
           return;
         }
 
-        if (command === "clear") {
+        if (command === "clear" || command === "cls") {
           term.write("\u001b[2J\u001b[3J\u001b[H");
           term.write(promptRef.current);
           return;
         }
 
         if (command === "exit") {
-          onClose?.();
+          onCloseRef.current?.();
           return;
         }
 
@@ -573,14 +642,15 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
         const isTui = /^(nano|vim|vi|less|more|top|htop|man)\b/.test(command);
         if (isTui) interactiveRef.current = true;
         const remoteCommand = prepareRemoteCommand(command, isTui);
+        const sizedRemoteCommand = withTerminalSize(remoteCommand, term);
 
         if (
           sendOrQueueSocketMessage({
             type: "execute_command",
-            command: remoteCommand,
+            command: sizedRemoteCommand,
           })
         ) {
-          pendingEchoRef.current = remoteCommand;
+          pendingEchoRef.current = sizedRemoteCommand;
           term.write("\r\n");
           return;
         }
@@ -588,7 +658,7 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
         try {
           const response = await sendTerminalCommand(
             device.deviceIdentifier,
-            remoteCommand,
+            sizedRemoteCommand,
             false,
           );
           const rawOutput = extractOutput(response);
@@ -621,6 +691,16 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
 
       term.attachCustomKeyEventHandler((event) => {
         if (event.type !== "keydown") return true;
+
+        if (hasLiveSocket()) {
+          const tabKey = String(event.key || "").toUpperCase() === "TAB";
+          if (tabKey) {
+            event.preventDefault();
+            void sendRaw("\x09");
+            return false;
+          }
+          return true;
+        }
 
         if (String(event.key || "").toUpperCase() === "TAB") {
           event.preventDefault();
@@ -677,7 +757,10 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
         const specialSequence = getSpecialSequence(event);
         if (specialSequence) {
           const upperKey = String(event.key || "").toUpperCase();
+          const liveSocket = hasLiveSocket();
           if (upperKey === " " && !interactiveRef.current) {
+            return true;
+          } else if (upperKey === " " && liveSocket && interactiveRef.current) {
             return true;
           }
 
@@ -694,9 +777,13 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
         if (!controlSequence) return true;
         event.preventDefault();
 
-        if (controlSequence === CONTROL_MAP.CTRL_C && !interactiveRef.current) {
-          resetShellBuffer();
-          term.write(`^C\r\n${promptRef.current}`);
+        if (controlSequence === CONTROL_MAP.CTRL_C && !hasLiveSocket()) {
+          if (interactiveRef.current) {
+            void sendRaw(controlSequence);
+          } else {
+            resetShellBuffer();
+            term.write(`^C\r\n${promptRef.current}`);
+          }
         } else {
           void sendRaw(controlSequence);
         }
@@ -707,7 +794,39 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
       const dataSub = term.onData((data) => {
         if (!device.deviceIdentifier) return;
 
-        if (socketExpectedRef.current && interactiveRef.current) {
+        if (hasLiveSocket()) {
+          if (data === "\r") {
+            const command = cmdBufRef.current.trim();
+            if (command === "cls") {
+              cmdBufRef.current = "";
+              cursorPosRef.current = 0;
+              void sendRaw("\x15");
+              term.write("\u001b[2J\u001b[3J\u001b[H");
+              term.write(promptRef.current);
+              return;
+            }
+            cmdBufRef.current = "";
+            cursorPosRef.current = 0;
+          } else if (data === "\u007f" || data === "\b") {
+            if (cursorPosRef.current > 0) {
+              cmdBufRef.current =
+                cmdBufRef.current.slice(0, cursorPosRef.current - 1) +
+                cmdBufRef.current.slice(cursorPosRef.current);
+              cursorPosRef.current -= 1;
+            }
+          } else if (data >= " " && data !== "\u007f" && !data.startsWith("\u001b")) {
+            const cursorPos = cursorPosRef.current;
+            cmdBufRef.current =
+              cmdBufRef.current.slice(0, cursorPos) +
+              data +
+              cmdBufRef.current.slice(cursorPos);
+            cursorPosRef.current += data.length;
+          }
+          void sendRaw(data);
+          return;
+        }
+
+        if (prefersLiveSocket() && interactiveRef.current) {
           if (data === "\u007f" || data === "\b") {
             void sendRaw("\x7f");
             return;
@@ -757,14 +876,25 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
         }
       });
 
-      const onResize = () => fit.fit();
+      requestAnimationFrame(fitTerminal);
+
+      const onResize = () => fitTerminal();
       window.addEventListener("resize", onResize);
+      const resizeObserver =
+        typeof ResizeObserver !== "undefined"
+          ? new ResizeObserver(() => fitTerminal())
+          : null;
+      if (resizeObserver && terminalHostRef.current) {
+        resizeObserver.observe(terminalHostRef.current);
+      }
 
       teardown = () => {
         dataSub.dispose();
         window.removeEventListener("resize", onResize);
+        resizeObserver?.disconnect();
         socketReadyRef.current = false;
         pendingEchoRef.current = "";
+        resetTabState();
         if (socketRef.current) {
           try {
             if (socketRef.current.readyState === WebSocket.OPEN) {
@@ -787,38 +917,39 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
       disposed = true;
       teardown();
     };
-  }, [device, onClose, open]);
+  }, [device?.deviceIdentifier, open]);
 
   if (!open || !device) return null;
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-[1001] flex items-center justify-center bg-[rgba(3,7,18,0.56)] px-3 py-4 backdrop-blur-[0.125rem] sm:px-4 sm:py-5"
-      onClick={() => setConfirmClose(true)}
-    >
+    <div className="fixed inset-0 z-[1001] bg-[rgba(15,23,42,0.56)] backdrop-blur-[0.1875rem]">
       <div
-        className="flex h-[min(78dvh,38.75rem)] w-full max-w-[min(92vw,56.25rem)] flex-col overflow-hidden rounded-[0.625rem] border border-[#7ba9d8] bg-[#000000] shadow-[0_1.75rem_4.375rem_rgba(2,6,23,0.45)]"
-        onClick={(event) => event.stopPropagation()}
+        className="flex h-full w-full flex-col overflow-hidden bg-[#000000] shadow-[0_1.75rem_4.5rem_rgba(15,23,42,0.18)]"
+        role="dialog"
+        aria-modal="true"
       >
-        <div className="flex items-center justify-between border-b border-[#7ba9d8] bg-[#86b6e8] px-4 py-2">
-          <div>
-            <p className="font-['Poppins'] text-[0.875rem] font-semibold text-[#08111f]">
-              {device.title || device.name} SSH Console
-            </p>
-            <p className="text-[0.625rem] text-[#163252]">
-              Remote terminal session
-            </p>
+        <div className="flex items-center justify-between border-b border-[#7ba9d8] bg-[#86b6e8] px-5 py-4">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setConfirmClose(true)}
+              className="inline-flex h-[2.375rem] w-[2.375rem] shrink-0 items-center justify-center rounded-[0.75rem] border border-[#4e7aa8] bg-[#dcecff] text-[#163252] transition-colors hover:bg-[#c9e0fb]"
+              aria-label="Back to dashboard"
+            >
+              <BackIcon />
+            </button>
+            <div className="min-w-0">
+              <p className="truncate font-['Poppins'] text-[1.125rem] font-semibold text-[#08111f]">
+                {device.title || device.name} SSH Console
+              </p>
+              <p className="font-inter text-[0.75rem] font-medium text-[#163252]">
+                Remote terminal session
+              </p>
+            </div>
           </div>
-          <button
-            type="button"
-            onClick={() => setConfirmClose(true)}
-            className="rounded border border-[#4e7aa8] bg-[#dcecff] px-2.5 py-1 text-[0.6875rem] font-medium text-[#163252] transition-colors hover:bg-[#c9e0fb]"
-          >
-            Close
-          </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 border-b border-[#163252] bg-[#050505] px-4 py-2 text-[0.625rem] text-[#bbbbbb]">
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#163252] bg-[#050505] px-5 py-3 font-inter text-[0.75rem] text-[#bbbbbb]">
           <span className="rounded border border-[#1f1f1f] bg-[#0c0c0c] px-2 py-1">
             Group: {device.group}
           </span>
@@ -866,9 +997,7 @@ export default function DeviceTerminalModal({ open, device, onClose }) {
               <button
                 type="button"
                 onClick={() => {
-                  notifyTerminalClosed();
-                  setConfirmClose(false);
-                  onClose?.();
+                  handleBackToDashboard();
                 }}
                 className="flex-1 rounded border border-[#d74646] bg-[#8b2c2c] px-4 py-2 text-[0.8125rem] font-medium text-[#ff8a8a] transition-colors hover:bg-[#a63c3c]"
               >

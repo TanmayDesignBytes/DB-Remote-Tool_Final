@@ -73,6 +73,9 @@ function AccountField({
   placeholder = "",
   disabled = false,
 }) {
+  const [isFocused, setIsFocused] = useState(false);
+  const isFilled = String(value ?? "").trim().length > 0;
+
   return (
     <label className="grid gap-[0.75rem] md:grid-cols-[11.875rem_minmax(0,1fr)] md:items-center">
       <span className="font-inter text-[0.875rem] font-medium leading-5 text-[#475467]">
@@ -84,7 +87,13 @@ function AccountField({
         onChange={onChange}
         placeholder={placeholder}
         disabled={disabled}
-        className="h-[3rem] rounded-[0.75rem] border border-[#D0D5DD] bg-white px-[1rem] font-inter text-[0.9375rem] text-[#101828] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3]"
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
+        className={`h-[3rem] rounded-[0.75rem] border px-[1rem] font-inter text-[0.9375rem] text-[#101828] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3] ${
+          isFilled && !isFocused
+            ? "border-[#D5DDEB] bg-[#F8FAFC]"
+            : "border-[#D0D5DD] bg-white"
+        }`}
       />
     </label>
   );

@@ -258,11 +258,14 @@ function DeviceFilesModal({ open, device, onClose }) {
   const [rootFolders, setRootFolders] = useState([]);
   const [currentFolder, setCurrentFolder] = useState("");
   const [searchValue, setSearchValue] = useState("");
+  const [isSearchInputFocused, setIsSearchInputFocused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
+  const [isCreateFolderInputFocused, setIsCreateFolderInputFocused] =
+    useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const [isDownloadingFile, setIsDownloadingFile] = useState(false);
@@ -747,7 +750,13 @@ function DeviceFilesModal({ open, device, onClose }) {
                   placeholder="Search current folder"
                   value={searchValue}
                   onChange={(event) => setSearchValue(event.target.value)}
-                  className="h-[2.625rem] w-full rounded-[0.625rem] border border-[#D0D5DD] bg-white px-4 font-inter text-[0.875rem] text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2970FF]/20"
+                  onFocus={() => setIsSearchInputFocused(true)}
+                  onBlur={() => setIsSearchInputFocused(false)}
+                  className={`h-[2.625rem] w-full rounded-[0.625rem] border px-4 font-inter text-[0.875rem] text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2970FF]/20 ${
+                    searchValue.trim() && !isSearchInputFocused
+                      ? "border-[#D5DDEB] bg-[#F8FAFC]"
+                      : "border-[#D0D5DD] bg-white"
+                  }`}
                 />
               </div>
             </div>
@@ -759,7 +768,13 @@ function DeviceFilesModal({ open, device, onClose }) {
                   placeholder="Enter folder name"
                   value={newFolderName}
                   onChange={(event) => setNewFolderName(event.target.value)}
-                  className="h-[2.625rem] min-w-[13.75rem] flex-1 rounded-[0.625rem] border border-[#D0D5DD] bg-white px-4 font-inter text-[0.875rem] text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2970FF]/20"
+                  onFocus={() => setIsCreateFolderInputFocused(true)}
+                  onBlur={() => setIsCreateFolderInputFocused(false)}
+                  className={`h-[2.625rem] min-w-[13.75rem] flex-1 rounded-[0.625rem] border px-4 font-inter text-[0.875rem] text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2970FF]/20 ${
+                    newFolderName.trim() && !isCreateFolderInputFocused
+                      ? "border-[#D5DDEB] bg-[#F8FAFC]"
+                      : "border-[#D0D5DD] bg-white"
+                  }`}
                 />
                 <button
                   type="button"

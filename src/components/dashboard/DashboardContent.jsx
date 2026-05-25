@@ -7,7 +7,7 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { Hash, MoreVertical, RefreshCw } from "lucide-react";
+import { ArrowUp, MoreVertical, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/utils";
 import ActionMenu, {
   getDefaultDashboardActionItems,
@@ -764,28 +764,64 @@ function CardMeta({ device, isDisabled = false }) {
   );
 }
 
-function CodeFooter({ device, isDisabled = false }) {
+function ToInstallFooter({ device, isDisabled = false }) {
   const code = device.generatedCode || "-";
-  const date = device.date || "-";
 
   return (
-    <DeviceFooter
-      leadingIcon={
-        <Hash
+    <div
+      className={cn(
+        "mt-auto flex h-[3.625rem] w-full min-w-0 shrink-0 items-center rounded-[0.25rem] pb-[0.8125rem] pl-[0.9375rem] pr-[0.875rem] pt-[0.75rem] transition-colors duration-300 ease-out",
+        isDisabled ? "bg-black/10" : "bg-[#F3F6FD]",
+      )}
+    >
+      <div className="flex h-[2.0625rem] min-w-0 flex-1 items-center gap-[0.625rem] pr-[0.625rem]">
+        <img
+          src="/assets/Info_alt_duotone.svg"
+          alt=""
           className={cn(
-            "h-[1.25rem] w-[1.25rem] shrink-0 transition-colors duration-300 ease-out",
-            isDisabled ? "text-[#9CA3AF]" : "text-[#222222]",
+            "h-[1.5rem] w-[1.5rem] shrink-0 object-contain transition-all duration-300 ease-out",
+            isDisabled && "opacity-60 grayscale",
           )}
         />
-      }
-      leadingLabel={code}
-      leadingTitle={code}
-      leadingTooltip={code}
-      dateLabel={date}
-      dateTitle={date}
-      compactLeading
-      isDisabled={isDisabled}
-    />
+        <span
+          title={code}
+          className={cn(
+            "min-w-0 truncate font-dmSans text-[1rem] font-medium leading-[2.125rem] tracking-normal transition-colors duration-300 ease-out",
+            isDisabled ? "text-[#9CA3AF]" : "text-black",
+          )}
+        >
+          {code}
+        </span>
+      </div>
+
+      <img
+        src="/assets/Vector 2.svg"
+        alt=""
+        className={cn(
+          "h-[2rem] w-[0.0625rem] shrink-0 object-contain transition-all duration-300 ease-out",
+          isDisabled && "opacity-60 grayscale",
+        )}
+      />
+
+      <div className="flex h-[2.0625rem] min-w-0 flex-[1.15] items-center gap-[0.3125rem] pl-[1rem]">
+        <img
+          src="/assets/download-04.svg"
+          alt=""
+          className={cn(
+            "h-[0.875rem] w-[0.875rem] shrink-0 object-contain transition-all duration-300 ease-out",
+            isDisabled && "opacity-60 grayscale",
+          )}
+        />
+        <span
+          className={cn(
+            "min-w-0 truncate font-dmSans text-[0.875rem] font-medium leading-[2.625rem] tracking-normal transition-colors duration-300 ease-out",
+            isDisabled ? "text-[#9CA3AF]" : "text-black",
+          )}
+        >
+          To Install
+        </span>
+      </div>
+    </div>
   );
 }
 
@@ -874,74 +910,12 @@ function DeviceCard({ device, onOpenTerminal, onToggleMenu }) {
         </button>
       </div>
 
-      {isInstallCard && device.generatedCode ? (
-        <CodeFooter device={device} isDisabled={isDisabled} />
+      {isInstallCard ? (
+        <ToInstallFooter device={device} isDisabled={isDisabled} />
       ) : (
         <CardMeta device={device} isDisabled={isDisabled} />
       )}
     </article>
-  );
-}
-
-function DeleteDeviceModal({
-  open,
-  onClose,
-  onConfirm,
-  isSubmitting = false,
-  deviceName = "",
-  errorMessage = "",
-}) {
-  if (!open) {
-    return null;
-  }
-
-  return (
-    <div
-      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/30 px-4 py-6 backdrop-blur-[0.125rem]"
-      onClick={() => {
-        if (!isSubmitting) {
-          onClose?.();
-        }
-      }}
-    >
-      <div
-        className="flex w-[min(90vw,30rem)] flex-col rounded-[1.25rem] bg-white p-[2rem] shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25)]"
-        onClick={(event) => event.stopPropagation()}
-      >
-        <h2 className="font-[Poppins] text-[1.25rem] font-semibold leading-[1.875rem] text-[#101828]">
-          Delete Device
-        </h2>
-
-        <p className="mt-[1rem] font-inter text-[1rem] font-medium leading-[1.75rem] text-[#667085]">
-          {`Delete '${deviceName || "this device"}'?`}
-        </p>
-
-        {errorMessage ? (
-          <div className="mt-[1.25rem] rounded-[0.75rem] border border-[#fecdca] bg-[#fef3f2] px-4 py-3 text-[0.875rem] font-medium leading-5 text-[#b42318]">
-            {errorMessage}
-          </div>
-        ) : null}
-
-        <div className="mt-[2rem] flex items-start justify-start gap-[4.75rem]">
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="flex h-[2.75rem] w-[10.5625rem] items-center justify-center rounded-[6.25rem] border border-[#33363F] bg-white px-4 py-[0.625rem] text-[1rem] font-semibold leading-6 text-[#33363F] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={isSubmitting}
-            className="flex h-[2.75rem] w-[10.5625rem] items-center justify-center rounded-[6.25rem] border border-[#EF4444] bg-[#EF4444] px-4 py-[0.625rem] text-[1rem] font-semibold leading-6 text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] transition-colors hover:bg-[#DC2626] disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            {isSubmitting ? "Deleting..." : "Delete"}
-          </button>
-        </div>
-      </div>
-    </div>
   );
 }
 
@@ -1098,6 +1072,7 @@ function DashboardContent({
   const [filesDevice, setFilesDevice] = useState(null);
   const [terminalDevice, setTerminalDevice] = useState(null);
   const [openMenu, setOpenMenu] = useState(null);
+  const [isScrollTopVisible, setIsScrollTopVisible] = useState(false);
   const [activeTabStyle, setActiveTabStyle] = useState({
     width: "0rem",
     left: "0rem",
@@ -1105,6 +1080,8 @@ function DashboardContent({
   });
 
   const groupMenuRef = useRef(null);
+  const dashboardContentRef = useRef(null);
+  const scrollTopHideTimeoutRef = useRef(null);
   const tabRefs = useRef({});
   const pendingRefreshIntervalRef = useRef(null);
   const previousPendingDeviceKeysRef = useRef(new Set());
@@ -1165,6 +1142,37 @@ function DashboardContent({
 
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  useEffect(() => {
+    const scrollContainer = dashboardContentRef.current?.closest(
+      ".dashboard-panel-scroll",
+    );
+
+    if (!scrollContainer) {
+      return undefined;
+    }
+
+    const handleScroll = () => {
+      window.clearTimeout(scrollTopHideTimeoutRef.current);
+
+      if (scrollContainer.scrollTop <= 80) {
+        setIsScrollTopVisible(false);
+        return;
+      }
+
+      setIsScrollTopVisible(true);
+      scrollTopHideTimeoutRef.current = window.setTimeout(() => {
+        setIsScrollTopVisible(false);
+      }, 1100);
+    };
+
+    scrollContainer.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      scrollContainer.removeEventListener("scroll", handleScroll);
+      window.clearTimeout(scrollTopHideTimeoutRef.current);
+    };
   }, []);
 
   const loadDevices = useCallback(async ({ silent = false } = {}) => {
@@ -1703,84 +1711,103 @@ function DashboardContent({
     }
   }, [handleToggleDisable]);
 
+  const handleScrollToTop = useCallback(() => {
+    dashboardContentRef.current
+      ?.closest(".dashboard-panel-scroll")
+      ?.scrollTo({ top: 0, behavior: "smooth" });
+  }, []);
+
+  const handleScrollTopPointerEnter = useCallback(() => {
+    window.clearTimeout(scrollTopHideTimeoutRef.current);
+  }, []);
+
+  const handleScrollTopPointerLeave = useCallback(() => {
+    scrollTopHideTimeoutRef.current = window.setTimeout(() => {
+      setIsScrollTopVisible(false);
+    }, 450);
+  }, []);
+
   return (
     <>
-      <div className="h-full pl-[2.5rem] pr-[1.72rem] pt-[1.5rem] font-inter">
+      <div
+        ref={dashboardContentRef}
+        className="h-full pl-[2.5rem] pr-[1.72rem] pt-[1.5rem] font-inter"
+      >
         <div className="w-full">
           <div className="flex w-full items-center justify-between">
-            <div className="flex items-center gap-[1rem]">
-              <div className="relative h-[3.5625rem] w-[41.8125rem] rounded-full border border-[#F0F0F0] bg-white shadow-[0_0.19794rem_0.79175rem_rgba(0,0,0,0.05)]">
-                <div
-                  aria-hidden="true"
-                  className="pointer-events-none absolute top-[0.38rem] h-[2.75rem] rounded-[1.36088rem] bg-[#2970FF] shadow-[0_0.19794rem_0.19794rem_rgba(0,0,0,0.15)] transition-all duration-300 ease-out"
-                  style={{
-                    width: activeTabStyle.width,
-                    transform: `translateX(${activeTabStyle.left})`,
-                    opacity: activeTabStyle.visible ? 1 : 0,
-                  }}
-                />
-                {filterTabs.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    ref={(element) => {
-                      tabRefs.current[tab.id] = element;
+              <div className="flex items-center gap-[1rem]">
+                <div className="relative h-[3.5625rem] w-[40.625rem] rounded-full border border-[#F0F0F0] bg-white shadow-[0_0.19794rem_0.79175rem_rgba(0,0,0,0.05)]">
+                  <div
+                    aria-hidden="true"
+                    className="pointer-events-none absolute top-[0.38rem] h-[2.75rem] rounded-[1.36088rem] bg-[#2970FF] shadow-[0_0.19794rem_0.19794rem_rgba(0,0,0,0.15)] transition-all duration-300 ease-out"
+                    style={{
+                      width: activeTabStyle.width,
+                      transform: `translateX(${activeTabStyle.left})`,
+                      opacity: activeTabStyle.visible ? 1 : 0,
                     }}
-                    onClick={() => setSelectedTab(tab.id)}
-                    className={cn(
-                      "absolute inset-y-0 z-[1] flex items-center justify-center font-inter text-[1.125rem] font-semibold leading-[1.18763rem] transition-colors duration-300 ease-out",
-                      tabButtonLayout[tab.id],
-                      selectedTab === tab.id
-                        ? "text-white"
-                        : "text-[rgba(0,0,0,0.75)]",
-                    )}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
+                  />
+                  {filterTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      ref={(element) => {
+                        tabRefs.current[tab.id] = element;
+                      }}
+                      onClick={() => setSelectedTab(tab.id)}
+                      className={cn(
+                        "absolute inset-y-0 z-[1] flex items-center justify-center font-inter text-[1.125rem] font-semibold leading-[1.18763rem] transition-colors duration-300 ease-out",
+                        tabButtonLayout[tab.id],
+                        selectedTab === tab.id
+                          ? "text-white"
+                          : "text-[rgba(0,0,0,0.75)]",
+                      )}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
 
-              <button
-                type="button"
-                onClick={() => void handleRefreshDevices()}
-                disabled={isLoadingDevices || isRefreshingDevices}
-                className="flex h-[3.5rem] w-[3.5rem] shrink-0 items-center justify-center rounded-full border border-[#F0F0F0] bg-white text-[#2970FF] shadow-[0_0.19794rem_0.79175rem_rgba(0,0,0,0.05)] transition-all duration-200 ease-out hover:border-[#D6E4FF] hover:bg-[#F4F7FE] disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label="Refresh devices"
-                title="Refresh devices"
-              >
-                <RefreshCw
-                  className={cn(
-                    "h-[1.375rem] w-[1.375rem]",
-                    isRefreshingDevices && "animate-spin",
-                  )}
-                />
-              </button>
-            </div>
-
-            <div className="flex items-center justify-end gap-[1.5rem]">
-              <div ref={groupMenuRef} className="relative">
                 <button
                   type="button"
-                  onClick={() => setGroupMenuOpen((value) => !value)}
-                  className={cn(
-                    "flex h-[3.5rem] w-[14.44rem] items-center justify-between rounded-[0.625rem] border pl-[1.875rem] pr-[1.25rem] font-inter text-[1rem] font-semibold leading-[1.18763rem]",
-                    selectedGroup
-                      ? "border-[#2970FF] bg-[#F0F4F8] text-[#2970FF]"
-                      : "border-[#ECECEC] bg-white text-[rgba(0,0,0,0.75)]",
-                  )}
+                  onClick={() => void handleRefreshDevices()}
+                  disabled={isLoadingDevices || isRefreshingDevices}
+                  className="flex h-[3.5rem] w-[3.5rem] shrink-0 items-center justify-center rounded-full border border-[#F0F0F0] bg-white text-[#2970FF] shadow-[0_0.19794rem_0.79175rem_rgba(0,0,0,0.05)] transition-all duration-200 ease-out hover:border-[#D6E4FF] hover:bg-[#F4F7FE] disabled:cursor-not-allowed disabled:opacity-60"
+                  aria-label="Refresh devices"
+                  title="Refresh devices"
                 >
-                  <span className="truncate">
-                    {selectedGroup
-                      ? groupOptions.find((option) => option.id === selectedGroup)
-                          ?.label
-                      : "Group"}
-                  </span>
-                  <img
-                    src="/assets/chevron-down.svg"
-                    alt=""
-                    className="h-[1.5rem] w-[1.5rem] shrink-0"
+                  <RefreshCw
+                    className={cn(
+                      "h-[1.375rem] w-[1.375rem]",
+                      isRefreshingDevices && "animate-spin",
+                    )}
                   />
                 </button>
+              </div>
+
+              <div className="flex items-center justify-end gap-[1.5rem]">
+                <div ref={groupMenuRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setGroupMenuOpen((value) => !value)}
+                    className={cn(
+                      "flex h-[3.5rem] w-[14.44rem] items-center justify-between rounded-[0.625rem] border pl-[1.875rem] pr-[1.25rem] font-inter text-[1rem] font-semibold leading-[1.18763rem]",
+                      selectedGroup
+                        ? "border-[#2970FF] bg-[#F0F4F8] text-[#2970FF]"
+                        : "border-[#ECECEC] bg-white text-[rgba(0,0,0,0.75)]",
+                    )}
+                  >
+                    <span className="truncate">
+                      {selectedGroup
+                        ? groupOptions.find((option) => option.id === selectedGroup)
+                            ?.label
+                        : "Group"}
+                    </span>
+                    <img
+                      src="/assets/chevron-down.svg"
+                      alt=""
+                      className="h-[1.5rem] w-[1.5rem] shrink-0"
+                    />
+                  </button>
 
                 {groupMenuOpen && (
                   <div className="absolute left-0 top-full z-50 mt-2 w-[14.44rem] rounded-[0.5rem] border border-[#ECECEC] bg-white py-1 shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25),0_0.75rem_1.25rem_rgba(7,6,18,0.25)]">
@@ -1816,27 +1843,27 @@ function DashboardContent({
                     ))}
                   </div>
                 )}
-              </div>
+                </div>
 
-              <button
-                type="button"
-                className="flex h-[3.5rem] w-[9.25rem] items-center justify-center gap-[0.13rem] rounded-[1.75rem] bg-[linear-gradient(118deg,#2970FF_9.79%,#193D9E_97.55%)] font-inter text-[1rem] font-semibold leading-[1.18763rem] text-white"
-                onClick={() => {
-                  setAddDeviceError("");
-                  setIsAddDeviceOpen(true);
-                }}
-              >
-                <img
-                  src="/assets/plus.svg"
-                  alt=""
-                  className="h-[1.3125rem] w-[1.3125rem] shrink-0"
-                />
-                <span className="h-[1.125rem] w-[5.5625rem] text-left">
-                  Add Device
-                </span>
-              </button>
+                <button
+                  type="button"
+                  className="flex h-[3.5rem] w-[9.25rem] items-center justify-center gap-[0.13rem] rounded-[1.75rem] bg-[linear-gradient(118deg,#2970FF_9.79%,#193D9E_97.55%)] font-inter text-[1rem] font-semibold leading-[1.18763rem] text-white"
+                  onClick={() => {
+                    setAddDeviceError("");
+                    setIsAddDeviceOpen(true);
+                  }}
+                >
+                  <img
+                    src="/assets/plus.svg"
+                    alt=""
+                    className="h-[1.3125rem] w-[1.3125rem] shrink-0"
+                  />
+                  <span className="h-[1.125rem] w-[5.5625rem] text-left">
+                    Add Device
+                  </span>
+                </button>
+              </div>
             </div>
-          </div>
 
           <div className="-ml-[0.75rem] mt-[1.53rem] h-px w-[calc(100%+0.75rem)] bg-[#ECECEC]" />
 
@@ -1860,6 +1887,23 @@ function DashboardContent({
           )}
         </div>
       </div>
+
+      <button
+        type="button"
+        onClick={handleScrollToTop}
+        onPointerEnter={handleScrollTopPointerEnter}
+        onPointerLeave={handleScrollTopPointerLeave}
+        aria-label="Return to top"
+        title="Return to top"
+        className={cn(
+          "fixed bottom-[3rem] right-[3rem] z-30 flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full bg-[#2970FF] text-white shadow-[0_0.35rem_1rem_rgba(41,112,255,0.34)] transition-all duration-200 ease-out hover:bg-[#205FE0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2970FF] focus-visible:ring-offset-2",
+          isScrollTopVisible
+            ? "pointer-events-auto translate-y-0 opacity-100"
+            : "pointer-events-none translate-y-[0.5rem] opacity-0",
+        )}
+      >
+        <ArrowUp className="h-[1.375rem] w-[1.375rem]" />
+      </button>
 
       <FixedActionMenu
         anchorEl={openMenu?.anchorEl ?? null}
@@ -1894,8 +1938,13 @@ function DashboardContent({
         errorMessage={editDeviceError}
       />
 
-      <DeleteDeviceModal
+      <ActionConfirmModal
         open={Boolean(deletingDevice)}
+        title="Delete device"
+        message={`Are you sure you want to delete ${deletingDevice?.title || "this device"}?`}
+        confirmLabel="Delete"
+        isSubmitting={isDeletingDevice}
+        errorMessage={deleteDeviceError}
         onClose={() => {
           if (isDeletingDevice) {
             return;
@@ -1904,9 +1953,6 @@ function DashboardContent({
           setDeletingDevice(null);
         }}
         onConfirm={handleDeleteDevice}
-        isSubmitting={isDeletingDevice}
-        deviceName={deletingDevice?.title}
-        errorMessage={deleteDeviceError}
       />
 
       <ActionConfirmModal

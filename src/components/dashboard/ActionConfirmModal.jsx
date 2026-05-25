@@ -1,4 +1,5 @@
 import React, { useEffect } from "react";
+import { createPortal } from "react-dom";
 
 function ActionConfirmModal({
   open,
@@ -34,7 +35,7 @@ function ActionConfirmModal({
     return null;
   }
 
-  return (
+  return createPortal(
     <>
       <div
         className="fixed inset-0 z-[1000] bg-black/35 backdrop-blur-[0.125rem]"
@@ -62,7 +63,7 @@ function ActionConfirmModal({
               className="mt-0.5 text-[1.5rem] leading-none text-[#94A3B8] transition-opacity hover:opacity-70 disabled:cursor-not-allowed disabled:opacity-50"
               aria-label="Close dialog"
             >
-              ×
+              &times;
             </button>
           </div>
 
@@ -89,14 +90,15 @@ function ActionConfirmModal({
               type="button"
               onClick={onConfirm}
               disabled={isSubmitting}
-              className="min-w-[6rem] rounded-[0.75rem] bg-[#2855CB] px-6 py-3 font-inter text-[0.875rem] font-semibold text-white transition-colors hover:bg-[#234AB2] disabled:cursor-not-allowed disabled:opacity-60"
+              className="min-w-[6rem] rounded-[0.75rem] border border-[#356FE8] bg-[#2855CB] px-6 py-3 font-inter text-[0.875rem] font-semibold text-white transition-all duration-200 hover:border-[#5F8EF5] hover:bg-[linear-gradient(90deg,#5488FA_0%,#3C76F2_42%,#2C64DF_100%)] hover:shadow-[0_0.625rem_1.375rem_rgba(41,112,255,0.2),0_0_0_0.0625rem_rgba(95,142,245,0.55)] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSubmitting ? "..." : confirmLabel}
             </button>
           </div>
         </div>
       </div>
-    </>
+    </>,
+    document.body,
   );
 }
 

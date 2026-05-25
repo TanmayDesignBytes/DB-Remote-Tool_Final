@@ -63,16 +63,50 @@ function Field({ label, children, errorMessage = "" }) {
   );
 }
 
+function SelectInput({
+  value,
+  onChange,
+  disabled = false,
+  required = false,
+  ariaInvalid = false,
+  className = "",
+  style,
+  children,
+}) {
+  const [isFocused, setIsFocused] = useState(false);
+  const isFilled = String(value ?? "").trim().length > 0;
+
+  return (
+    <select
+      value={value}
+      onChange={onChange}
+      disabled={disabled}
+      required={required}
+      aria-invalid={ariaInvalid}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      className={`h-[3.4375rem] cursor-pointer appearance-none rounded-[0.5rem] border px-[0.875rem] py-[0.625rem] text-[1rem] font-normal leading-6 shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] outline-none transition-[background-color,border-color,box-shadow] duration-200 focus:ring-2 focus:ring-[#2970FF]/20 disabled:cursor-not-allowed disabled:opacity-60 ${
+        isFilled && !isFocused
+          ? "border-[#D5DDEB] bg-[#F8FAFC]"
+          : "border-[#D0D5DD] bg-white"
+      } ${className}`}
+      style={style}
+    >
+      {children}
+    </select>
+  );
+}
+
 function SerialSelect({ label, value, options, onChange }) {
   return (
     <div className="flex flex-col">
       <label className="mb-1 text-[0.75rem] font-semibold text-[#667085]">
         {label}
       </label>
-      <select
+      <SelectInput
         value={value}
         onChange={onChange}
-        className="h-[3.4375rem] cursor-pointer appearance-none rounded-[0.5rem] border border-[#D0D5DD] bg-white px-[0.875rem] py-[0.625rem] pr-[2.1875rem] text-[1rem] font-normal leading-6 text-[#344054] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] outline-none focus:ring-2 focus:ring-[#2970FF]/20"
+        className="pr-[2.1875rem] text-[#344054]"
         style={{
           fontFamily: "Inter, sans-serif",
           fontStyle: "normal",
@@ -88,7 +122,7 @@ function SerialSelect({ label, value, options, onChange }) {
             {option}
           </option>
         ))}
-      </select>
+      </SelectInput>
     </div>
   );
 }
@@ -263,8 +297,10 @@ function AddDeviceModal({
 
             <Field label="Group" errorMessage={formErrors.group}>
               <div className="relative">
-                <select
-                  className="h-[3.4375rem] w-full appearance-none rounded-[0.5rem] border border-[#D0D5DD] bg-white px-[0.875rem] py-[0.625rem] pr-[2.75rem] text-[1rem] font-normal leading-6 text-[#667085] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] outline-none focus:ring-2 focus:ring-[#2970FF]/20"
+                <SelectInput
+                  className={`w-full pr-[2.75rem] ${
+                    formValues.group ? "text-[#344054]" : "text-[#667085]"
+                  }`}
                   style={{ fontFamily: "Inter, sans-serif", fontStyle: "normal" }}
                   value={formValues.group}
                   onChange={handleChange("group")}
@@ -280,7 +316,7 @@ function AddDeviceModal({
                       {option}
                     </option>
                   ))}
-                </select>
+                </SelectInput>
                 <span className="pointer-events-none absolute inset-y-0 right-[0.875rem] flex items-center">
                   <ChevronDownIcon />
                 </span>

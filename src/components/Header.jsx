@@ -258,6 +258,7 @@ function ExpandableSearchButton({
     : isHovered
       ? SEARCH_EXPANDED_WIDTH_REM
       : SEARCH_BUTTON_SIZE_REM;
+  const isFilled = String(value ?? "").trim().length > 0;
 
   return (
     <div
@@ -274,16 +275,18 @@ function ExpandableSearchButton({
         }
       }}
     >
-      <div
-        className={[
-          "absolute right-0 top-0 h-[2.5rem] overflow-hidden rounded-[6.25rem] bg-white",
-          "border transition-[width,border-color,box-shadow] duration-300 ease-in-out",
-          isFocused
-            ? "border-[#bfdbfe] shadow-[0_10px_30px_rgba(15,23,42,0.10),0_0_0_4px_rgba(59,130,246,0.08)]"
-            : "border-[rgba(168,168,168,0.7)] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)]",
-        ].join(" ")}
-        style={{ width: `${shellWidth}rem` }}
-      >
+        <div
+          className={[
+            "absolute right-0 top-0 h-[2.5rem] overflow-hidden rounded-[6.25rem]",
+            "border transition-[width,border-color,box-shadow] duration-300 ease-in-out",
+            isFocused
+              ? "border-[#bfdbfe] shadow-[0_10px_30px_rgba(15,23,42,0.10),0_0_0_4px_rgba(59,130,246,0.08)]"
+              : isFilled
+                ? "border-[#D5DDEB] bg-[#F8FAFC] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)]"
+                : "border-[rgba(168,168,168,0.7)] bg-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)]",
+          ].join(" ")}
+          style={{ width: `${shellWidth}rem` }}
+        >
         <Search
           className={[
             "pointer-events-none absolute top-1/2 z-10 h-[1.25rem] w-[1.25rem] text-[#242425] transition-all duration-300 ease-in-out",
@@ -418,6 +421,9 @@ function AccountModalField({
   disabled = false,
   trailingAdornment = null,
 }) {
+  const [isFocused, setIsFocused] = useState(false);
+  const isFilled = String(value ?? "").trim().length > 0;
+
   return (
     <label className="flex flex-col gap-[0.4375rem]">
       <span className="font-inter text-[0.8125rem] font-semibold leading-5 text-[#475467]">
@@ -430,8 +436,13 @@ function AccountModalField({
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           className={[
-            "h-[2.875rem] w-full rounded-[0.75rem] border border-[#D0D5DD] bg-white px-[0.875rem] font-inter text-[0.9375rem] text-[#101828] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3]",
+            "h-[2.875rem] w-full rounded-[0.75rem] border px-[0.875rem] font-inter text-[0.9375rem] text-[#101828] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3]",
+            isFilled && !isFocused
+              ? "border-[#D5DDEB] bg-[#F8FAFC]"
+              : "border-[#D0D5DD] bg-white",
             trailingAdornment ? "pr-[3rem]" : "",
           ].join(" ")}
         />

@@ -107,6 +107,9 @@ function AccountField({
   disabled = false,
   trailingAdornment = null,
 }) {
+  const [isFocused, setIsFocused] = useState(false);
+  const isFilled = String(value ?? "").trim().length > 0;
+
   return (
     <label className="flex flex-col gap-[0.4375rem]">
       <span className="font-inter text-[0.8125rem] font-semibold leading-5 text-[#475467]">
@@ -119,8 +122,13 @@ function AccountField({
           onChange={onChange}
           placeholder={placeholder}
           disabled={disabled}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
           className={[
-            "h-[2.875rem] w-full rounded-[0.75rem] border border-[#D0D5DD] bg-white px-[0.875rem] font-inter text-[0.9375rem] text-[#101828] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3]",
+            "h-[2.875rem] w-full rounded-[0.75rem] border px-[0.875rem] font-inter text-[0.9375rem] text-[#101828] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3]",
+            isFilled && !isFocused
+              ? "border-[#D5DDEB] bg-[#F8FAFC]"
+              : "border-[#D0D5DD] bg-white",
             trailingAdornment ? "pr-[3rem]" : "",
           ].join(" ")}
         />

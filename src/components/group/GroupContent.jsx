@@ -609,7 +609,7 @@ function GroupContent({ searchQuery = "" }) {
     <>
       <div className="h-full pl-[3.625rem] pr-[2.5625rem] pt-[1.5rem]">
         <div className="flex items-start justify-between">
-          <h1 className="h-[1.125rem] w-[10.875rem] font-inter text-[1.125rem] font-semibold leading-[1.18763rem] text-[rgba(0,0,0,0.75)]">
+          <h1 className="-ml-[0.9375rem] font-inter text-[1.125rem] font-semibold leading-[1.18763rem] text-[rgba(0,0,0,0.75)]">
             Group Details
           </h1>
 
@@ -634,7 +634,7 @@ function GroupContent({ searchQuery = "" }) {
           </button>
         </div>
 
-        <div className="-ml-[1.75rem] mt-[1.53rem] h-px w-[calc(100%+2.5rem)] bg-[#ECECEC]" />
+        <div className="-ml-[2.6875rem] mt-[1.5rem] h-px w-[calc(100%+2.6875rem)] bg-[#ECECEC]" />
 
         {filteredGroups.length > 0 ? (
           <div className="-ml-[1.505rem] -mr-[1.05rem] mt-[1.875rem] flex flex-wrap items-start gap-[0.9375rem]">
