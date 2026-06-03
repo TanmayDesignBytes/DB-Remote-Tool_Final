@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "react-toastify";
 
 const EMPTY_VALUES = {
   name: "",
@@ -13,11 +14,6 @@ function Field({ label, children, errorMessage = "" }) {
         {label}
       </span>
       {children}
-      {errorMessage ? (
-        <span className="font-inter text-[0.75rem] font-medium leading-[1.125rem] text-[#D92D20]">
-          {errorMessage}
-        </span>
-      ) : null}
     </label>
   );
 }
@@ -44,7 +40,7 @@ function TextInput({
       aria-invalid={ariaInvalid}
       onFocus={() => setIsFocused(true)}
       onBlur={() => setIsFocused(false)}
-      className={`h-[3.4375rem] w-full rounded-[0.5rem] border px-[0.875rem] py-[0.625rem] font-inter text-[1rem] font-normal leading-[1.5rem] text-[#344054] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#667085] focus:ring-2 focus:ring-[#2970FF]/20 disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`h-[3.4375rem] w-full rounded-[0.5rem] border px-[0.875rem] py-[0.625rem] font-inter text-[1rem] font-normal leading-[1.5rem] text-[#1F2937] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#B5BAC1] focus:ring-2 focus:ring-[#2970FF]/20 disabled:cursor-not-allowed disabled:opacity-60 ${
         isFilled && !isFocused
           ? "border-[#D5DDEB] bg-[#F8FAFC]"
           : "border-[#D0D5DD] bg-white"
@@ -130,6 +126,16 @@ function AddGroupModal({
 
     if (Object.keys(requiredErrors).length > 0) {
       setFormErrors(requiredErrors);
+      const errorFields = Object.keys(requiredErrors);
+      const fieldNames = {
+        name: "Group name",
+        description: "Description",
+      };
+      const missingFields = errorFields.map((field) => fieldNames[field]);
+      const formattedMessage = missingFields.length === 1
+        ? `${missingFields[0]} is required.`
+        : `${missingFields.slice(0, -1).join(", ")} and ${missingFields[missingFields.length - 1]} are required.`;
+      toast.error(formattedMessage);
       return;
     }
 
@@ -153,7 +159,7 @@ function AddGroupModal({
 
       <div className="fixed inset-0 z-[1001] flex items-center justify-center px-4 py-6">
         <div
-          className="flex w-[32.125rem] max-w-[80rem] flex-col gap-[2rem] overflow-hidden rounded-[1.25rem] bg-white p-[3.125rem] shadow-[0_0.25rem_0.25rem_0_rgba(0,0,0,0.25)] backdrop-blur-[0.40625rem]"
+          className="themed-dialog add-group-modal flex w-[32.125rem] max-w-[80rem] flex-col gap-[2rem] overflow-hidden rounded-[1.25rem] bg-white p-[3.125rem] shadow-[0_0.25rem_0.25rem_0_rgba(0,0,0,0.25)] backdrop-blur-[0.40625rem]"
           role="dialog"
           aria-modal="true"
           aria-labelledby="add-group-title"
@@ -194,14 +200,7 @@ function AddGroupModal({
                 />
               </Field>
 
-              {errorMessage ? (
-                <div className="rounded-[0.75rem] border border-[#FECDCA] bg-[#FEF3F2] px-4 py-3 font-inter text-[0.875rem] font-medium leading-5 text-[#B42318]">
-                  {errorMessage}
-                </div>
-              ) : null}
-            </div>
-
-            <div className="flex w-full items-center justify-between">
+              <div className="flex w-full items-center justify-between">
               <button
                 type="button"
                 onClick={onClose}
@@ -218,6 +217,7 @@ function AddGroupModal({
               >
                 {isSubmitting ? "Saving..." : "Confirm"}
               </button>
+            </div>
             </div>
           </form>
         </div>

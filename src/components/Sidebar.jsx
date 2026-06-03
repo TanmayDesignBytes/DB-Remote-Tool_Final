@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { cn } from "../lib/utils";
+import ThemeModeToggle from "./ThemeModeToggle.jsx";
 
 const navItems = [
   {
@@ -107,6 +108,9 @@ function Sidebar({ activeTab, onTabChange }) {
             </button>
           );
         })}
+        <div className="relative z-[1] mt-[0.75rem] flex w-[4.25rem] justify-center">
+          <ThemeModeToggle />
+        </div>
       </nav>
     </aside>
   );

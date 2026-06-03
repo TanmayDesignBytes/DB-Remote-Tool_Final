@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "react-toastify";
 
 const EMPTY_VALUES = {
   name: "",
@@ -54,11 +55,6 @@ function Field({ label, children, errorMessage = "" }) {
         {label}
       </label>
       {children}
-      {errorMessage ? (
-        <p className="text-[0.75rem] font-medium leading-[1.125rem] text-[#D92D20]">
-          {errorMessage}
-        </p>
-      ) : null}
     </div>
   );
 }
@@ -143,7 +139,7 @@ function TextInput({
     <input
       type="text"
       placeholder={placeholder}
-      className={`h-[3.4375rem] w-full rounded-[0.5rem] border px-[0.875rem] py-[0.625rem] text-[1rem] font-normal leading-6 text-[#344054] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#667085] focus:ring-2 focus:ring-[#2970FF]/20 disabled:cursor-not-allowed disabled:opacity-60 ${
+      className={`h-[3.4375rem] w-full rounded-[0.5rem] border px-[0.875rem] py-[0.625rem] font-inter text-[1rem] font-normal leading-[1.5rem] text-[#1F2937] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#B5BAC1] focus:ring-2 focus:ring-[#2970FF]/20 disabled:cursor-not-allowed disabled:opacity-60 ${
         isFilled && !isFocused
           ? "border-[#D5DDEB] bg-[#F8FAFC]"
           : "border-[#D0D5DD] bg-white"
@@ -251,6 +247,17 @@ function AddDeviceModal({
 
     if (Object.keys(requiredErrors).length > 0) {
       setFormErrors(requiredErrors);
+      const errorFields = Object.keys(requiredErrors);
+      const fieldNames = {
+        name: "Device name",
+        group: "Group",
+        description: "Description",
+      };
+      const missingFields = errorFields.map((field) => fieldNames[field]);
+      const formattedMessage = missingFields.length === 1
+        ? `${missingFields[0]} is required.`
+        : `${missingFields.slice(0, -1).join(", ")} and ${missingFields[missingFields.length - 1]} are required.`;
+      toast.error(formattedMessage);
       return;
     }
 
@@ -268,7 +275,7 @@ function AddDeviceModal({
       onClick={onClose}
     >
       <div
-        className="flex max-h-[90vh] w-[min(90vw,32.125rem)] flex-col items-center overflow-hidden rounded-[1.25rem] bg-white p-[2rem] shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25)] backdrop-blur-[0.40625rem] lg:p-[3.125rem]"
+        className="themed-dialog add-device-modal flex max-h-[90vh] w-[min(90vw,32.125rem)] flex-col items-center overflow-hidden rounded-[1.25rem] bg-white p-[2rem] shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25)] backdrop-blur-[0.40625rem] lg:p-[3.125rem]"
         onClick={(event) => event.stopPropagation()}
       >
         <h2
@@ -283,7 +290,7 @@ function AddDeviceModal({
           onSubmit={handleSubmit}
           noValidate
         >
-          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-[0.1875rem] py-[0.1875rem] pr-[0.9375rem]">
+          <div className="remote-detail-scroll flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto px-[0.1875rem] py-[0.1875rem] pr-[0.9375rem]">
             <Field label="Device Name" errorMessage={formErrors.name}>
               <TextInput
                 value={formValues.name}
@@ -381,12 +388,6 @@ function AddDeviceModal({
                 </div>
               </div>
             </Field>
-
-            {errorMessage ? (
-              <div className="w-full rounded-[0.75rem] border border-[#fecdca] bg-[#fef3f2] px-4 py-3 text-[0.875rem] font-medium leading-5 text-[#b42318]">
-                {errorMessage}
-              </div>
-            ) : null}
           </div>
 
           <div className="mt-[1.375rem] flex w-full items-start justify-start gap-[4.75rem]">

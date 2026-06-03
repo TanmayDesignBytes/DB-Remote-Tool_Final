@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { ChevronDown, Eye, EyeOff, X } from "lucide-react";
 import {
   broadcastProfileUpdate,
@@ -125,7 +126,7 @@ function AccountField({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className={[
-            "h-[2.875rem] w-full rounded-[0.75rem] border px-[0.875rem] font-inter text-[0.9375rem] text-[#101828] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3]",
+            "h-[2.875rem] w-full rounded-[0.75rem] border px-[0.875rem] font-inter text-[0.9375rem] text-[#1F2937] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#B5BAC1] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3]",
             isFilled && !isFocused
               ? "border-[#D5DDEB] bg-[#F8FAFC]"
               : "border-[#D0D5DD] bg-white",
@@ -367,12 +368,15 @@ function AccountDrawer({ open, onClose }) {
       }));
       setIsPasswordChangeOpen(false);
       setProfileSuccess("Profile updated successfully.");
+      toast.success("Profile updated successfully!");
     } catch (error) {
       if (handleInvalidSession(error)) {
         return;
       }
 
-      setProfileError(error?.message || "Unable to update profile right now.");
+      const errorMsg = error?.message || "Unable to update profile right now.";
+      setProfileError(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsUpdatingProfile(false);
     }
@@ -391,12 +395,15 @@ function AccountDrawer({ open, onClose }) {
       setVisiblePasswordFields((current) => ({
         ...current,
         emailPassword: false,
-      }));
-      setOtpError("");
-      setIsOtpModalOpen(true);
+      toast.info("OTP sent to your email. Please verify it.");
     } catch (error) {
       if (handleInvalidSession(error)) {
         return;
+      }
+
+      const errorMsg = error?.message || "Unable to update email right now.";
+      setEmailError(errorMsg);
+      toast.error(errorMsg
       }
 
       setEmailError(error?.message || "Unable to update email right now.");
@@ -432,12 +439,15 @@ function AccountDrawer({ open, onClose }) {
       }));
       setProfileSuccess("Email updated successfully.");
       setIsOtpModalOpen(false);
-      setOtpModalDetails(DEFAULT_OTP_MODAL);
-      setEmailModalDetails(DEFAULT_EMAIL_MODAL);
-      setVisiblePasswordFields((current) => ({
-        ...current,
-        emailPassword: false,
-      }));
+      toast.success("Email updated successfully!");
+    } catch (error) {
+      if (handleInvalidSession(error)) {
+        return;
+      }
+
+      const errorMsg = error?.message || "Unable to verify OTP right now.";
+      setOtpError(errorMsg);
+      toast.error(errorMsg
     } catch (error) {
       if (handleInvalidSession(error)) {
         return;

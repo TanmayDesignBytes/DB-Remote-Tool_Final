@@ -24,10 +24,10 @@ function FormField({
       <div className="relative w-full self-stretch">
         <input
           className={[
-            "flex h-[3.125rem] w-full items-center gap-[0.5rem] self-stretch rounded-[0.5rem] border px-[0.875rem] py-[0.625rem] font-inter text-[1rem] font-normal leading-[1.5rem] text-gray-500 shadow-input outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-gray-500 focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:cursor-not-allowed disabled:opacity-60",
+            "flex h-[3.125rem] w-full items-center gap-[0.5rem] self-stretch rounded-[0.5rem] border px-[0.875rem] py-[0.625rem] font-inter text-[1rem] font-normal leading-[1.5rem] text-[#1F2937] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#B5BAC1] focus:ring-2 focus:ring-[#2970FF]/20 disabled:cursor-not-allowed disabled:opacity-60",
             isFilled && !isFocused
               ? "border-[#D5DDEB] bg-[#F8FAFC]"
-              : "border-gray-300 bg-white",
+              : "border-[#D0D5DD] bg-white",
             trailingAdornment ? "pr-[3.125rem]" : "",
           ].join(" ")}
           type={type}

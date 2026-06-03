@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff } from "lucide-react";
-import AuthFeedbackMessage from "./AuthFeedbackMessage.jsx";
+import { toast } from "react-toastify";
 import FormField from "./FormField.jsx";
 import { loginUser } from "../../lib/api.js";
 import {
@@ -10,7 +10,6 @@ import {
 } from "../../lib/auth.js";
 
 function LoginForm() {
-  const location = useLocation();
   const navigate = useNavigate();
   const [formValues, setFormValues] = useState({
     email: "",
@@ -18,14 +17,7 @@ function LoginForm() {
     rememberMe: true,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
-
-  useEffect(() => {
-    const nextStatusMessage = location.state?.statusMessage || "";
-    setStatusMessage(nextStatusMessage);
-  }, [location.state]);
 
   const updateField = (field) => (event) => {
     const value =
@@ -43,13 +35,11 @@ function LoginForm() {
     const email = formValues.email.trim();
 
     if (!email || !formValues.password) {
-      setErrorMessage("Enter your email and password to sign in.");
+      toast.error("Enter your email and password to sign in.");
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMessage("");
-    setStatusMessage("");
 
     try {
       const response = await loginUser({
@@ -71,7 +61,7 @@ function LoginForm() {
       });
       navigate("/dashboard");
     } catch (error) {
-      setErrorMessage(error?.message || "Unable to sign in. Please try again.");
+      toast.error(error?.message || "Unable to sign in. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -125,9 +115,6 @@ function LoginForm() {
             }
           />
         </div>
-
-        <AuthFeedbackMessage message={statusMessage} tone="success" />
-        <AuthFeedbackMessage message={errorMessage} tone="error" />
 
         <div className="flex h-[3.125rem] items-center justify-between gap-[1.5rem] self-stretch">
           <label className="flex items-center gap-[0.75rem] font-poppins text-[0.875rem] font-medium leading-[1.375rem] text-gray-700">

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import ActionConfirmModal from "./ActionConfirmModal.jsx";
 import {
   createFolder,
@@ -130,6 +131,47 @@ function UploadIcon() {
         strokeLinecap="round"
       />
     </svg>
+  );
+}
+
+function UploadProgressCircle({ progress }) {
+  const normalizedProgress = Math.min(100, Math.max(0, Number(progress) || 0));
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset =
+    circumference - (normalizedProgress / 100) * circumference;
+
+  return (
+    <div
+      className="relative grid h-12 w-12 shrink-0 place-items-center rounded-full bg-white shadow-[0_0.5rem_1.5rem_rgba(41,112,255,0.18)]"
+      role="status"
+      aria-label={`Upload ${normalizedProgress}% complete`}
+    >
+      <svg viewBox="0 0 44 44" className="h-11 w-11 -rotate-90">
+        <circle
+          cx="22"
+          cy="22"
+          r={radius}
+          fill="none"
+          stroke="#E4EAF5"
+          strokeWidth="4"
+        />
+        <circle
+          cx="22"
+          cy="22"
+          r={radius}
+          fill="none"
+          stroke="#2970FF"
+          strokeLinecap="round"
+          strokeWidth="4"
+          strokeDasharray={circumference}
+          strokeDashoffset={strokeDashoffset}
+        />
+      </svg>
+      <span className="absolute font-inter text-[0.6875rem] font-bold text-[#1849A9]">
+        {normalizedProgress}%
+      </span>
+    </div>
   );
 }
 
@@ -268,6 +310,7 @@ function DeviceFilesModal({ open, device, onClose }) {
     useState(false);
   const [isCreatingFolder, setIsCreatingFolder] = useState(false);
   const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [isDownloadingFile, setIsDownloadingFile] = useState(false);
   const [pendingDeletePath, setPendingDeletePath] = useState("");
   const [isDeletingPath, setIsDeletingPath] = useState(false);
@@ -277,7 +320,12 @@ function DeviceFilesModal({ open, device, onClose }) {
   const fileInputRef = useRef(null);
   const requestIdRef = useRef(0);
   const rootRequestIdRef = useRef(0);
+  const onCloseRef = useRef(onClose);
   const deviceIdentifier = String(device?.deviceIdentifier || "").trim();
+
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   const clearCenterListing = useCallback(() => {
     setCurrentFolder("");
@@ -343,7 +391,9 @@ function DeviceFilesModal({ open, device, onClose }) {
         if (requestId !== requestIdRef.current) {
           return;
         }
-        setErrorMessage(error?.message || "Failed to load files and folders.");
+        const errorMsg = error?.message || "Failed to load files and folders.";
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
         setListing(EMPTY_LISTING);
         setCurrentFolder(nextFolder);
       } finally {
@@ -362,7 +412,7 @@ function DeviceFilesModal({ open, device, onClose }) {
 
     const handleKeyDown = (event) => {
       if (event.key === "Escape") {
-        onClose?.();
+        onCloseRef.current?.();
       }
     };
 
@@ -381,7 +431,7 @@ function DeviceFilesModal({ open, device, onClose }) {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = "unset";
     };
-  }, [clearCenterListing, loadRootFolders, onClose, open]);
+  }, [clearCenterListing, loadRootFolders, open]);
 
   const normalizedFolders = useMemo(
     () => (listing.folders || []).map((folder) => normalizeFolderEntry(folder, currentFolder)),
@@ -468,7 +518,9 @@ function DeviceFilesModal({ open, device, onClose }) {
 
   const handleDelete = () => {
     if (!selectedPath) {
-      setErrorMessage("Please select a file or folder to delete.");
+      const errorMsg = "Please select a file or folder to delete.";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
       return;
     }
     setPendingDeletePath(selectedPath);
@@ -478,7 +530,9 @@ function DeviceFilesModal({ open, device, onClose }) {
     const trimmedName = newFolderName.trim();
     if (!trimmedName || isCreatingFolder) return;
     if (!deviceIdentifier) {
-      setErrorMessage("This device is not connected yet, so folders cannot be created.");
+      const errorMsg = "This device is not connected yet, so folders cannot be created.";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
@@ -501,7 +555,9 @@ function DeviceFilesModal({ open, device, onClose }) {
       await loadRootFolders();
       await loadFolder(currentFolder);
     } catch (error) {
-      setErrorMessage(error?.message || "Failed to create folder.");
+      const errorMsg = error?.message || "Failed to create folder.";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsCreatingFolder(false);
     }
@@ -511,13 +567,22 @@ function DeviceFilesModal({ open, device, onClose }) {
     const selectedFiles = Array.from(event.target.files || []);
     if (selectedFiles.length === 0 || isUploadingFile) return;
     if (!deviceIdentifier) {
-      setErrorMessage("This device is not connected yet, so files cannot be uploaded.");
+      const errorMsg = "This device is not connected yet, so files cannot be uploaded.";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
       event.target.value = "";
       return;
     }
 
     const destinationPath = (currentFolder ? `/${currentFolder}` : "/root").replace(/\/+$/, "/");
+    const totalUploadBytes = selectedFiles.reduce(
+      (total, file) => total + file.size,
+      0,
+    );
+    let completedUploadBytes = 0;
+
     setIsUploadingFile(true);
+    setUploadProgress(0);
     setErrorMessage("");
     setFeedbackMessage("");
 
@@ -526,15 +591,41 @@ function DeviceFilesModal({ open, device, onClose }) {
         const formData = new FormData();
         formData.append("file", file);
         formData.append("destinationpath", destinationPath);
-        await uploadFile(deviceIdentifier, formData);
+        await uploadFile(deviceIdentifier, formData, undefined, {
+          onProgress: ({ loaded }) => {
+            if (!totalUploadBytes) {
+              return;
+            }
+
+            setUploadProgress(
+              Math.min(
+                99,
+                Math.round(
+                  ((completedUploadBytes + loaded) / totalUploadBytes) * 100,
+                ),
+              ),
+            );
+          },
+        });
+        completedUploadBytes += file.size;
+        setUploadProgress(
+          Math.min(
+            99,
+            Math.round((completedUploadBytes / totalUploadBytes) * 100),
+          ),
+        );
       }
+      setUploadProgress(100);
       setFeedbackMessage(`${selectedFiles.length} file(s) uploaded successfully to ${destinationPath}`);
       await loadRootFolders();
       await loadFolder(currentFolder);
     } catch (error) {
-      setErrorMessage(error?.message || "Failed to upload file.");
+      const errorMsg = error?.message || "Failed to upload file.";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsUploadingFile(false);
+      window.setTimeout(() => setUploadProgress(0), 800);
       event.target.value = "";
     }
   };
@@ -542,7 +633,9 @@ function DeviceFilesModal({ open, device, onClose }) {
   const handleDownloadSelectedFile = async () => {
     if (!canDownloadSelectedFile || isDownloadingFile) return;
     if (!deviceIdentifier) {
-      setErrorMessage("This device is not connected yet, so files cannot be downloaded.");
+      const errorMsg = "This device is not connected yet, so files cannot be downloaded.";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
       return;
     }
 
@@ -566,7 +659,9 @@ function DeviceFilesModal({ open, device, onClose }) {
       window.URL.revokeObjectURL(objectUrl);
       setFeedbackMessage("File downloaded successfully.");
     } catch (error) {
-      setErrorMessage(error?.message || "Failed to download file.");
+      const errorMsg = error?.message || "Failed to download file.";
+      setErrorMessage(errorMsg);
+      toast.error(errorMsg);
     } finally {
       setIsDownloadingFile(false);
     }
@@ -618,7 +713,7 @@ function DeviceFilesModal({ open, device, onClose }) {
       />
       <div className="fixed inset-0 z-[1001]">
         <div
-          className="flex h-full w-full overflow-hidden bg-white shadow-[0_1.75rem_4.5rem_rgba(15,23,42,0.18)]"
+          className="fullscreen-tool-modal device-files-modal flex h-full w-full overflow-hidden bg-white shadow-[0_1.75rem_4.5rem_rgba(15,23,42,0.18)]"
           role="dialog"
           aria-modal="true"
           onClick={(event) => event.stopPropagation()}
@@ -727,6 +822,9 @@ function DeviceFilesModal({ open, device, onClose }) {
                 <UploadIcon />
                 {isUploadingFile ? "Uploading..." : "Upload File"}
               </button>
+              {isUploadingFile ? (
+                <UploadProgressCircle progress={uploadProgress} />
+              ) : null}
               <button
                 type="button"
                 onClick={handleDownloadSelectedFile}
@@ -752,7 +850,7 @@ function DeviceFilesModal({ open, device, onClose }) {
                   onChange={(event) => setSearchValue(event.target.value)}
                   onFocus={() => setIsSearchInputFocused(true)}
                   onBlur={() => setIsSearchInputFocused(false)}
-                  className={`h-[2.625rem] w-full rounded-[0.625rem] border px-4 font-inter text-[0.875rem] text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2970FF]/20 ${
+                  className={`h-[2.625rem] w-full rounded-[0.625rem] border px-4 font-inter text-[0.875rem] text-[#1F2937] placeholder:text-[#B5BAC1] focus:outline-none focus:ring-2 focus:ring-[#2970FF]/20 ${
                     searchValue.trim() && !isSearchInputFocused
                       ? "border-[#D5DDEB] bg-[#F8FAFC]"
                       : "border-[#D0D5DD] bg-white"
@@ -770,7 +868,7 @@ function DeviceFilesModal({ open, device, onClose }) {
                   onChange={(event) => setNewFolderName(event.target.value)}
                   onFocus={() => setIsCreateFolderInputFocused(true)}
                   onBlur={() => setIsCreateFolderInputFocused(false)}
-                  className={`h-[2.625rem] min-w-[13.75rem] flex-1 rounded-[0.625rem] border px-4 font-inter text-[0.875rem] text-[#101828] placeholder:text-[#98A2B3] focus:outline-none focus:ring-2 focus:ring-[#2970FF]/20 ${
+                  className={`h-[2.625rem] min-w-[13.75rem] flex-1 rounded-[0.625rem] border px-4 font-inter text-[0.875rem] text-[#1F2937] placeholder:text-[#B5BAC1] focus:outline-none focus:ring-2 focus:ring-[#2970FF]/20 ${
                     newFolderName.trim() && !isCreateFolderInputFocused
                       ? "border-[#D5DDEB] bg-[#F8FAFC]"
                       : "border-[#D0D5DD] bg-white"

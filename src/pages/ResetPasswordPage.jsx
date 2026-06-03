@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import AuthCardShell from "../components/auth/AuthCardShell.jsx";
-import AuthFeedbackMessage from "../components/auth/AuthFeedbackMessage.jsx";
 import AuthPageShell from "../components/auth/AuthPageShell.jsx";
 import FormField from "../components/auth/FormField.jsx";
 import { resetPassword } from "../lib/api.js";
@@ -12,37 +12,32 @@ function ResetPasswordPage() {
   const navigate = useNavigate();
   const [newPassword, setNewPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
   const resetToken = getResetTokenFromLocation(location.pathname, location.search);
 
   useEffect(() => {
-    const nextStatusMessage =
-      location.state?.statusMessage ||
-      (resetToken
-        ? "Reset token detected from your reset link. Enter a new password."
-        : "");
+    const nextStatusMessage = location.state?.statusMessage;
 
-    setStatusMessage(nextStatusMessage);
-  }, [location.state, resetToken]);
+    if (nextStatusMessage) {
+      toast.info(nextStatusMessage);
+    }
+  }, [location.state]);
 
   const handleSubmit = async (event) => {
     event.preventDefault();
 
     if (!resetToken) {
-      setErrorMessage(
+      toast.error(
         "Reset link is missing or invalid. Please open the reset link from your email again.",
       );
       return;
     }
 
     if (!newPassword) {
-      setErrorMessage("Enter your new password to continue.");
+      toast.error("Enter your new password to continue.");
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMessage("");
 
     try {
       const response = await resetPassword({
@@ -50,16 +45,18 @@ function ResetPasswordPage() {
         newPassword,
       });
 
-      navigate("/", {
-        replace: true,
-        state: {
-          statusMessage:
-            response?.message ||
-            "Password reset successful. Please sign in with your new password.",
-        },
-      });
+      toast.success(
+        response?.message ||
+          "Password reset successful. Redirecting to login...",
+      );
+      
+      setTimeout(() => {
+        navigate("/", {
+          replace: true,
+        });
+      }, 1500);
     } catch (error) {
-      setErrorMessage(error?.message || "Unable to reset your password. Please try again.");
+      toast.error(error?.message || "Unable to reset your password. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -87,9 +84,6 @@ function ResetPasswordPage() {
               autoComplete="new-password"
               disabled={isSubmitting}
             />
-
-            <AuthFeedbackMessage message={statusMessage} tone="success" />
-            <AuthFeedbackMessage message={errorMessage} tone="error" />
 
             <div className="flex h-[3.125rem] items-center justify-between gap-[1.5rem] self-stretch">
               <span className="font-poppins text-[0.875rem] font-normal leading-[1.25rem] text-gray-600">

@@ -61,7 +61,7 @@ export function getDefaultDashboardActionItems(isDisabled = false) {
 
 function ActionMenu({ items = getDefaultDashboardActionItems(), onAction }) {
   return (
-    <div className="flex w-[12.1875rem] flex-col items-start self-stretch overflow-hidden rounded-[0.5rem] border border-[#EAECF0] bg-white p-[0.25rem] shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25),0_0.75rem_1.25rem_rgba(7,6,18,0.25)]">
+    <div className="dashboard-action-menu flex w-[12.1875rem] flex-col items-start self-stretch overflow-hidden rounded-[0.5rem] border border-[#EAECF0] bg-white p-[0.25rem] shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25),0_0.75rem_1.25rem_rgba(7,6,18,0.25)]">
       {items.map(
         ({
           label,

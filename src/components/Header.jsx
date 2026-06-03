@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import {
   CheckCircle2,
   Eye,
@@ -50,8 +50,29 @@ const DEFAULT_PASSWORD_VISIBILITY = {
   newPassword: false,
   confirmPassword: false,
 };
+const DASHBOARD_ROUTE = "/dashboard";
+const ACCOUNT_MODAL_ROUTES = {
+  name: "/dashboard/change-name",
+  email: "/dashboard/change-email",
+  "email-otp": "/dashboard/change-email/verify",
+  password: "/dashboard/change-password",
+};
 const ACCOUNT_PRIMARY_BUTTON_CLASS =
   "rounded-[0.75rem] border border-[#356FE8] bg-[linear-gradient(90deg,#3973EE_0%,#356FE8_55%,#2F67E0_100%)] px-4 py-2.5 font-inter text-[0.8125rem] font-semibold text-white shadow-input transition-all duration-200 hover:border-[#5F8EF5] hover:bg-[linear-gradient(90deg,#5488FA_0%,#3C76F2_42%,#2C64DF_100%)] hover:shadow-[0_0.625rem_1.375rem_rgba(41,112,255,0.2),0_0_0_0.0625rem_rgba(95,142,245,0.55)] disabled:cursor-not-allowed disabled:opacity-80";
+
+function normalizePath(pathname) {
+  return (pathname || DASHBOARD_ROUTE).replace(/\/+$/, "") || DASHBOARD_ROUTE;
+}
+
+function getAccountModalFromRoute(pathname) {
+  const normalizedPath = normalizePath(pathname);
+
+  return (
+    Object.entries(ACCOUNT_MODAL_ROUTES).find(
+      ([, route]) => route === normalizedPath,
+    )?.[0] || null
+  );
+}
 
 function AvatarFace({ userProfile, className = "" }) {
   const profileImage =
@@ -81,33 +102,6 @@ function AvatarFace({ userProfile, className = "" }) {
     >
       {firstLetter}
     </div>
-  );
-}
-
-function CameraIcon() {
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-      className="h-[0.875rem] w-[0.875rem]"
-    >
-      <path
-        d="M1.16675 4.49266C1.16675 3.62224 1.87236 2.91663 2.74279 2.91663C3.19504 2.91663 3.59655 2.62723 3.73956 2.19819L3.79175 2.04163C3.81636 1.96779 3.82866 1.93088 3.84183 1.89813C4.00994 1.47995 4.40389 1.19601 4.85377 1.16876C4.889 1.16663 4.92792 1.16663 5.00575 1.16663H8.99442C9.07225 1.16663 9.11116 1.16663 9.14639 1.16876C9.59627 1.19601 9.99022 1.47995 10.1583 1.89813C10.1715 1.93088 10.1838 1.96779 10.2084 2.04163L10.2606 2.19819C10.4036 2.62723 10.8051 2.91663 11.2574 2.91663C12.1278 2.91663 12.8334 3.62224 12.8334 4.49266V9.44996C12.8334 10.4301 12.8334 10.9201 12.6427 11.2944C12.4749 11.6237 12.2072 11.8914 11.8779 12.0592C11.5036 12.25 11.0135 12.25 10.0334 12.25H3.96675C2.98666 12.25 2.49661 12.25 2.12226 12.0592C1.79298 11.8914 1.52527 11.6237 1.35749 11.2944C1.16675 10.9201 1.16675 10.4301 1.16675 9.44996V4.49266Z"
-        stroke="black"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M7.00008 9.62496C8.44983 9.62496 9.62508 8.44971 9.62508 6.99996C9.62508 5.55021 8.44983 4.37496 7.00008 4.37496C5.55033 4.37496 4.37508 5.55021 4.37508 6.99996C4.37508 8.44971 5.55033 9.62496 7.00008 9.62496Z"
-        stroke="black"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   );
 }
 
@@ -263,7 +257,8 @@ function ExpandableSearchButton({
   return (
     <div
       ref={rootRef}
-      className="relative h-[2.5rem] w-[2.5rem] shrink-0 overflow-visible"
+      className="header-search-root relative h-[2.5rem] shrink-0 overflow-visible transition-[width] duration-300 ease-in-out"
+      style={{ width: `${shellWidth}rem` }}
       onMouseEnter={() => {
         if (!isExpanded) {
           setIsHovered(true);
@@ -277,7 +272,7 @@ function ExpandableSearchButton({
     >
         <div
           className={[
-            "absolute right-0 top-0 h-[2.5rem] overflow-hidden rounded-[6.25rem]",
+            "header-search-shell absolute right-0 top-0 h-[2.5rem] overflow-hidden rounded-[6.25rem]",
             "border transition-[width,border-color,box-shadow] duration-300 ease-in-out",
             isFocused
               ? "border-[#bfdbfe] shadow-[0_10px_30px_rgba(15,23,42,0.10),0_0_0_4px_rgba(59,130,246,0.08)]"
@@ -289,7 +284,7 @@ function ExpandableSearchButton({
         >
         <Search
           className={[
-            "pointer-events-none absolute top-1/2 z-10 h-[1.25rem] w-[1.25rem] text-[#242425] transition-all duration-300 ease-in-out",
+            "header-search-icon pointer-events-none absolute top-1/2 z-10 h-[1.25rem] w-[1.25rem] text-[#242425] transition-all duration-300 ease-in-out",
             isExpanded || isHovered
               ? "left-3 -translate-y-1/2"
               : "left-1/2 -translate-x-1/2 -translate-y-1/2",
@@ -309,8 +304,8 @@ function ExpandableSearchButton({
           onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           className={[
-            "h-full w-full bg-transparent font-inter text-[0.875rem] text-slate-900 outline-none",
-            "transition-opacity duration-200 ease-in-out placeholder:text-slate-400",
+            "header-search-input h-full w-full bg-transparent font-inter text-[0.875rem] text-[#1F2937] outline-none",
+            "transition-opacity duration-200 ease-in-out placeholder:text-[#B5BAC1]",
             isExpanded
               ? value
                 ? "cursor-text pl-10 pr-10 opacity-100"
@@ -331,7 +326,7 @@ function ExpandableSearchButton({
                 inputRef.current?.focus();
               });
             }}
-            className="absolute right-3 top-1/2 z-10 flex h-[1.25rem] w-[1.25rem] -translate-y-1/2 items-center justify-center text-black"
+            className="header-search-clear absolute right-3 top-1/2 z-10 flex h-[1.25rem] w-[1.25rem] -translate-y-1/2 items-center justify-center text-black"
           >
             <X className="h-[1rem] w-[1rem] stroke-[2.25]" />
           </button>
@@ -349,7 +344,7 @@ function ExpandableSearchButton({
       </div>
 
       {hasSuggestions ? (
-        <div className="absolute right-0 top-[calc(100%+0.5rem)] z-[70] w-[15.625rem] overflow-hidden rounded-[0.875rem] border border-[#EAECF0] bg-white py-[0.375rem] shadow-[0_1rem_2rem_rgba(15,23,42,0.14)]">
+        <div className="header-search-suggestions absolute right-0 top-[calc(100%+0.5rem)] z-[70] w-[15.625rem] overflow-hidden rounded-[0.875rem] border border-[#EAECF0] bg-white py-[0.375rem] shadow-[0_1rem_2rem_rgba(15,23,42,0.14)]">
           {suggestions.map((suggestion) => (
             <button
               key={suggestion.id}
@@ -379,32 +374,17 @@ function ExpandableSearchButton({
 
 function AccountActionModal({ title, description, onClose, children, footer }) {
   return (
-    <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-[rgba(15,23,42,0.36)] p-4 backdrop-blur-[0.125rem]">
-      <div className="w-full max-w-[30rem] overflow-hidden rounded-[1rem] bg-white shadow-[0_1.5625rem_3.125rem_rgba(15,23,42,0.22)]">
-        <div className="flex items-start justify-between border-b border-[#EAECF0] px-[1.25rem] py-[1rem]">
-          <div className="min-w-0">
-            <h3 className="font-inter text-[1rem] font-semibold text-[#101828]">
-              {title}
-            </h3>
-            {description ? (
-              <p className="mt-[0.25rem] font-inter text-[0.8125rem] leading-5 text-[#667085]">
-                {description}
-              </p>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="ml-3 flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#475467] transition-colors hover:bg-[#F2F4F7]"
-            aria-label={`Close ${title}`}
-          >
-            <X className="h-5 w-5" />
-          </button>
+    <div className="account-action-backdrop fixed inset-0 z-[1300] flex items-center justify-center bg-[rgba(15,23,42,0.36)] p-4 backdrop-blur-[0.125rem]">
+      <div className="account-action-modal themed-dialog w-full max-w-[30rem] overflow-hidden rounded-[1rem] bg-white shadow-[0_1.5625rem_3.125rem_rgba(15,23,42,0.22)]">
+        <div className="account-action-header px-[1.25rem] py-[1rem]">
+          <h3 className="account-action-title font-inter text-[1rem] font-semibold text-[#101828]">
+            {title}
+          </h3>
         </div>
 
         <div className="grid gap-4 px-[1.25rem] py-[1.25rem]">{children}</div>
 
-        <div className="flex justify-end gap-3 border-t border-[#EAECF0] px-[1.25rem] py-[0.875rem]">
+        <div className="account-action-footer flex justify-between gap-8 px-[1.25rem] py-[2rem]">
           {footer}
         </div>
       </div>
@@ -426,7 +406,7 @@ function AccountModalField({
 
   return (
     <label className="flex flex-col gap-[0.4375rem]">
-      <span className="font-inter text-[0.8125rem] font-semibold leading-5 text-[#475467]">
+      <span className="account-modal-label font-inter text-[0.8125rem] font-semibold leading-5 text-[#475467]">
         {label}
       </span>
       <div className="relative">
@@ -439,7 +419,7 @@ function AccountModalField({
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           className={[
-            "h-[2.875rem] w-full rounded-[0.75rem] border px-[0.875rem] font-inter text-[0.9375rem] text-[#101828] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3]",
+            "account-modal-input h-[3.4375rem] w-full rounded-[0.5rem] border px-[0.875rem] py-[0.625rem] font-inter text-[1rem] font-normal leading-[1.5rem] text-[#1F2937] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#B5BAC1] focus:ring-2 focus:ring-[#2970FF]/20 disabled:cursor-not-allowed disabled:opacity-60",
             isFilled && !isFocused
               ? "border-[#D5DDEB] bg-[#F8FAFC]"
               : "border-[#D0D5DD] bg-white",
@@ -447,7 +427,7 @@ function AccountModalField({
           ].join(" ")}
         />
         {trailingAdornment ? (
-          <div className="absolute right-[0.625rem] top-1/2 flex -translate-y-1/2 items-center">
+          <div className="account-modal-adornment absolute right-[0.625rem] top-1/2 flex -translate-y-1/2 items-center">
             {trailingAdornment}
           </div>
         ) : null}
@@ -462,7 +442,7 @@ function AccountFeedback({ children }) {
   }
 
   return (
-    <div className="rounded-[0.75rem] border border-[#FECDCA] bg-[#FEF3F2] px-4 py-3 font-inter text-[0.8125rem] leading-5 text-[#B42318]">
+    <div className="account-modal-feedback rounded-[0.75rem] border border-[#FECDCA] bg-[#FEF3F2] px-4 py-3 font-inter text-[0.8125rem] leading-5 text-[#B42318]">
       {children}
     </div>
   );
@@ -506,8 +486,8 @@ function ProfileMenu({
   onSignOut,
 }) {
   return (
-    <div className="absolute right-0 top-full z-[60] -mt-[0.4375rem] flex w-[16.5rem] flex-col overflow-hidden rounded-[1rem] border border-[#e5e7eb] bg-white shadow-[0_1.5625rem_3.125rem_rgba(0,0,0,0.15),0_0.625rem_1.25rem_rgba(0,0,0,0.1)]">
-      <div className="flex h-[5.875rem] w-full shrink-0 flex-col items-start border-b border-[#e5e7eb] bg-gradient-to-r from-[#ede9fe] to-[#e0e7ff] px-4 py-3">
+    <div className="profile-menu absolute right-0 top-full z-[60] -mt-[0.4375rem] flex w-[16.5rem] flex-col overflow-hidden rounded-[1rem] border border-[#e5e7eb] bg-white shadow-[0_1.5625rem_3.125rem_rgba(0,0,0,0.15),0_0.625rem_1.25rem_rgba(0,0,0,0.1)]">
+      <div className="profile-menu-hero flex h-[5.875rem] w-full shrink-0 flex-col items-start border-b border-[#e5e7eb] bg-gradient-to-r from-[#ede9fe] to-[#e0e7ff] px-4 py-3">
         <div className="flex h-full w-[12.6875rem] flex-1 items-center justify-center gap-3 self-center">
           <div className="relative flex h-[4.0625rem] w-[4.0625rem] items-center justify-center">
             <div className="absolute inset-0 rounded-full border-[0.046875rem] border-[rgba(3,15,14,0.08)] opacity-[0.08]" />
@@ -515,18 +495,11 @@ function ProfileMenu({
               userProfile={userProfile}
               className="h-full w-full rounded-full object-cover text-[1.75rem] shadow-[0_0.25rem_0.75rem_rgba(0,0,0,0.15)]"
             />
-            <button
-              type="button"
-              className="absolute bottom-0 right-0 flex h-[1.3125rem] w-[1.3125rem] items-center justify-center rounded-full bg-white shadow-[0_0.125rem_0.5rem_rgba(0,0,0,0.1)] transition-transform hover:scale-110"
-              aria-label="Change profile photo"
-            >
-              <CameraIcon />
-            </button>
           </div>
         </div>
       </div>
 
-      <div className="flex w-full flex-col items-start bg-white">
+      <div className="profile-menu-body flex w-full flex-col items-start bg-white">
         <div className="flex min-h-[6.25rem] self-stretch flex-col items-center gap-[1.125rem] border-b border-[#eaecf0] px-4 py-5">
           <div className="flex w-full flex-col items-start px-4">
             <div className="flex w-full items-center gap-2">
@@ -551,7 +524,7 @@ function ProfileMenu({
         <button
           type="button"
           onClick={onChangePassword}
-          className="flex min-h-[3.375rem] self-stretch items-center border-b border-[#eaecf0] bg-white px-4 py-1 text-left transition-all duration-200 hover:bg-[#f9fafb]"
+          className="profile-menu-action flex min-h-[3.375rem] self-stretch items-center border-b border-[#eaecf0] bg-white px-4 py-1 text-left transition-all duration-200 hover:bg-[#f9fafb]"
         >
           <div className="flex flex-1 items-center gap-2 py-[0.125rem] pr-[0.375rem] pl-4">
             <KeyRound className="h-4 w-4 text-[#344054]" />
@@ -564,7 +537,7 @@ function ProfileMenu({
         <button
           type="button"
           onClick={onSignOut}
-          className="flex min-h-[3.375rem] self-stretch items-center bg-white px-4 py-1 text-left transition-all duration-200 hover:bg-[#f9fafb]"
+          className="profile-menu-action flex min-h-[3.375rem] self-stretch items-center bg-white px-4 py-1 text-left transition-all duration-200 hover:bg-[#f9fafb]"
         >
           <div className="flex flex-1 items-center gap-2 py-[0.125rem] pr-[0.375rem] pl-4">
             <LogOutIcon />
@@ -585,6 +558,7 @@ function Header({
   onSearchSuggestionSelect,
 }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [profileOpen, setProfileOpen] = useState(false);
   const [userProfile, setUserProfile] = useState(
     () => readStoredUserProfile() || DEFAULT_USER_PROFILE,
@@ -695,7 +669,7 @@ function Header({
     return true;
   };
 
-  const closeAccountModal = ({ force = false } = {}) => {
+  const closeAccountModal = ({ force = false, skipNavigation = false } = {}) => {
     if (isSubmittingAccountAction && !force) {
       return;
     }
@@ -707,6 +681,10 @@ function Header({
     setOtpModalDetails(DEFAULT_OTP_MODAL);
     setPasswordModalDetails(DEFAULT_PASSWORD_MODAL);
     setVisiblePasswordFields(DEFAULT_PASSWORD_VISIBILITY);
+
+    if (!skipNavigation && getAccountModalFromRoute(location.pathname)) {
+      navigate(DASHBOARD_ROUTE);
+    }
   };
 
   const showSuccessAndReturnToDashboard = (message) => {
@@ -721,7 +699,7 @@ function Header({
     accountSuccessTimeoutRef.current = window.setTimeout(() => {
       setAccountActionSuccess("");
       accountSuccessTimeoutRef.current = null;
-      navigate("/dashboard", { replace: true });
+      navigate(DASHBOARD_ROUTE, { replace: true });
     }, 2000);
   };
 
@@ -733,7 +711,7 @@ function Header({
 
     if (modalName === "name") {
       setNameModalDetails({
-        name: userProfile.username || "",
+        name: "",
         currentPassword: "",
       });
     }
@@ -748,7 +726,60 @@ function Header({
     }
 
     setActiveAccountModal(modalName);
+
+    const route = ACCOUNT_MODAL_ROUTES[modalName];
+    if (route && normalizePath(location.pathname) !== route) {
+      navigate(route);
+    }
   };
+
+  useEffect(() => {
+    const routeModal = getAccountModalFromRoute(location.pathname);
+
+    if (!routeModal) {
+      if (activeAccountModal) {
+        setActiveAccountModal(null);
+        setAccountActionError("");
+        setNameModalDetails(DEFAULT_NAME_MODAL);
+        setEmailModalDetails(DEFAULT_EMAIL_MODAL);
+        setOtpModalDetails(DEFAULT_OTP_MODAL);
+        setPasswordModalDetails(DEFAULT_PASSWORD_MODAL);
+        setVisiblePasswordFields(DEFAULT_PASSWORD_VISIBILITY);
+      }
+      return;
+    }
+
+    if (activeAccountModal === routeModal) {
+      return;
+    }
+
+    setProfileOpen(false);
+    setAccountActionError("");
+    setAccountActionSuccess("");
+    setVisiblePasswordFields(DEFAULT_PASSWORD_VISIBILITY);
+
+    if (routeModal === "name") {
+      setNameModalDetails({
+        name: "",
+        currentPassword: "",
+      });
+    }
+
+    if (routeModal === "email") {
+      setEmailModalDetails(DEFAULT_EMAIL_MODAL);
+      setOtpModalDetails(DEFAULT_OTP_MODAL);
+    }
+
+    if (routeModal === "email-otp") {
+      setOtpModalDetails(DEFAULT_OTP_MODAL);
+    }
+
+    if (routeModal === "password") {
+      setPasswordModalDetails(DEFAULT_PASSWORD_MODAL);
+    }
+
+    setActiveAccountModal(routeModal);
+  }, [activeAccountModal, location.pathname, userProfile.username]);
 
   const updateProfileLocally = (profilePatch) => {
     const nextProfile = normalizeUserProfile(
@@ -842,6 +873,7 @@ function Header({
         currentPassword,
       });
       setActiveAccountModal("email-otp");
+      navigate(ACCOUNT_MODAL_ROUTES["email-otp"]);
       setVisiblePasswordFields((current) => ({
         ...current,
         emailPassword: false,
@@ -953,11 +985,11 @@ function Header({
         <img
           src="/assets/DB_Logo2.png"
           alt="Design Bytes"
-          className="h-full w-full object-contain object-left"
+          className="app-brand-logo h-full w-full object-contain object-left"
         />
       </button>
 
-      <div className="inline-flex items-start justify-end gap-[1.25rem]">
+      <div className="header-actions inline-flex items-start justify-end gap-[1.25rem] transition-[gap] duration-300 ease-in-out">
         <ExpandableSearchButton
           value={searchValue}
           onChange={onSearchChange}
@@ -994,14 +1026,13 @@ function Header({
       {activeAccountModal === "name" ? (
         <AccountActionModal
           title="Change name"
-          description="Update the display name shown across the dashboard. Current password is required to confirm this change."
           onClose={closeAccountModal}
           footer={
             <>
               <button
                 type="button"
                 onClick={closeAccountModal}
-                className="rounded-[0.75rem] border border-[#D0D5DD] bg-white px-4 py-2.5 font-inter text-[0.8125rem] font-semibold text-[#475467] transition-colors hover:bg-[#F8FAFC]"
+                className="flex h-[2.75rem] w-[10.5625rem] items-center justify-center rounded-[6.25rem] border border-[#33363F] bg-white px-4 py-[0.625rem] text-[1rem] font-semibold leading-6 text-[#33363F] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -1009,7 +1040,7 @@ function Header({
                 type="button"
                 onClick={handleNameUpdate}
                 disabled={isSubmittingAccountAction}
-                className={ACCOUNT_PRIMARY_BUTTON_CLASS}
+                className="flex h-[2.75rem] w-[10.5625rem] items-center justify-center rounded-[6.25rem] border border-[#356FE8] bg-[linear-gradient(90deg,#3973EE_0%,#356FE8_55%,#2F67E0_100%)] px-4 py-[0.625rem] text-[1rem] font-semibold leading-6 text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] transition-all duration-200 hover:border-[#5F8EF5] hover:bg-[linear-gradient(90deg,#5488FA_0%,#3C76F2_42%,#2C64DF_100%)] hover:shadow-[0_0.625rem_1.375rem_rgba(41,112,255,0.2),0_0_0_0.0625rem_rgba(95,142,245,0.55)] disabled:cursor-not-allowed disabled:opacity-80"
               >
                 {isSubmittingAccountAction ? "Saving..." : "Save Name"}
               </button>
@@ -1050,14 +1081,13 @@ function Header({
       {activeAccountModal === "email" ? (
         <AccountActionModal
           title="Change email"
-          description="Enter your new email and current password. We will send an OTP before saving it."
           onClose={closeAccountModal}
           footer={
             <>
               <button
                 type="button"
                 onClick={closeAccountModal}
-                className="rounded-[0.75rem] border border-[#D0D5DD] bg-white px-4 py-2.5 font-inter text-[0.8125rem] font-semibold text-[#475467] transition-colors hover:bg-[#F8FAFC]"
+                className="flex h-[2.75rem] w-[10.5625rem] items-center justify-center rounded-[6.25rem] border border-[#33363F] bg-white px-4 py-[0.625rem] text-[1rem] font-semibold leading-6 text-[#33363F] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -1065,7 +1095,7 @@ function Header({
                 type="button"
                 onClick={handleSendEmailOtp}
                 disabled={isSubmittingAccountAction}
-                className={ACCOUNT_PRIMARY_BUTTON_CLASS}
+                className="flex h-[2.75rem] w-[10.5625rem] items-center justify-center rounded-[6.25rem] border border-[#356FE8] bg-[linear-gradient(90deg,#3973EE_0%,#356FE8_55%,#2F67E0_100%)] px-4 py-[0.625rem] text-[1rem] font-semibold leading-6 text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] transition-all duration-200 hover:border-[#5F8EF5] hover:bg-[linear-gradient(90deg,#5488FA_0%,#3C76F2_42%,#2C64DF_100%)] hover:shadow-[0_0.625rem_1.375rem_rgba(41,112,255,0.2),0_0_0_0.0625rem_rgba(95,142,245,0.55)] disabled:cursor-not-allowed disabled:opacity-80"
               >
                 {isSubmittingAccountAction ? "Sending..." : "Send OTP"}
               </button>
@@ -1148,14 +1178,13 @@ function Header({
       {activeAccountModal === "password" ? (
         <AccountActionModal
           title="Change password"
-          description="Current password, new password, and confirmation are required."
           onClose={closeAccountModal}
           footer={
             <>
               <button
                 type="button"
                 onClick={closeAccountModal}
-                className="rounded-[0.75rem] border border-[#D0D5DD] bg-white px-4 py-2.5 font-inter text-[0.8125rem] font-semibold text-[#475467] transition-colors hover:bg-[#F8FAFC]"
+                className="flex h-[2.75rem] w-[10.5625rem] items-center justify-center rounded-[6.25rem] border border-[#33363F] bg-white px-4 py-[0.625rem] text-[1rem] font-semibold leading-6 text-[#33363F] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 Cancel
               </button>
@@ -1163,7 +1192,7 @@ function Header({
                 type="button"
                 onClick={handlePasswordUpdate}
                 disabled={isSubmittingAccountAction}
-                className={ACCOUNT_PRIMARY_BUTTON_CLASS}
+                className="flex h-[2.75rem] w-[10.5625rem] items-center justify-center rounded-[6.25rem] border border-[#356FE8] bg-[linear-gradient(90deg,#3973EE_0%,#356FE8_55%,#2F67E0_100%)] px-4 py-[0.625rem] text-[1rem] font-semibold leading-6 text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] transition-all duration-200 hover:border-[#5F8EF5] hover:bg-[linear-gradient(90deg,#5488FA_0%,#3C76F2_42%,#2C64DF_100%)] hover:shadow-[0_0.625rem_1.375rem_rgba(41,112,255,0.2),0_0_0_0.0625rem_rgba(95,142,245,0.55)] disabled:cursor-not-allowed disabled:opacity-80"
               >
                 {isSubmittingAccountAction ? "Updating..." : "Update Password"}
               </button>

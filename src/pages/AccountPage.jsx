@@ -78,7 +78,7 @@ function AccountField({
 
   return (
     <label className="grid gap-[0.75rem] md:grid-cols-[11.875rem_minmax(0,1fr)] md:items-center">
-      <span className="font-inter text-[0.875rem] font-medium leading-5 text-[#475467]">
+      <span className="account-modal-label font-inter text-[0.875rem] font-medium leading-5 text-[#475467]">
         {label}
       </span>
       <input
@@ -89,7 +89,7 @@ function AccountField({
         disabled={disabled}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
-        className={`h-[3rem] rounded-[0.75rem] border px-[1rem] font-inter text-[0.9375rem] text-[#101828] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#98A2B3] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3] ${
+        className={`account-modal-input h-[3rem] rounded-[0.75rem] border px-[1rem] font-inter text-[0.9375rem] text-[#1F2937] outline-none transition-[background-color,border-color,box-shadow] duration-200 placeholder:text-[#B5BAC1] focus:border-[#84ADFF] focus:ring-2 focus:ring-[#2970FF]/20 disabled:bg-[#F8FAFC] disabled:text-[#98A2B3] ${
           isFilled && !isFocused
             ? "border-[#D5DDEB] bg-[#F8FAFC]"
             : "border-[#D0D5DD] bg-white"
@@ -101,10 +101,10 @@ function AccountField({
 
 function ModalShell({ title, onClose, children, footer }) {
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-[rgba(15,23,42,0.36)] p-4 backdrop-blur-[0.125rem]">
-      <div className="w-full max-w-[35rem] overflow-hidden rounded-[1rem] bg-white shadow-[0_1.5625rem_3.125rem_rgba(15,23,42,0.22)]">
-        <div className="flex items-center justify-between border-b border-[#EAECF0] px-[1.5rem] py-[1rem]">
-          <h3 className="font-inter text-[1.125rem] font-semibold text-[#101828]">
+    <div className="account-action-backdrop fixed inset-0 z-[120] flex items-center justify-center bg-[rgba(15,23,42,0.36)] p-4 backdrop-blur-[0.125rem]">
+      <div className="account-action-modal themed-dialog w-full max-w-[35rem] overflow-hidden rounded-[1rem] bg-white shadow-[0_1.5625rem_3.125rem_rgba(15,23,42,0.22)]">
+        <div className="account-action-header flex items-center justify-between border-b border-[#EAECF0] px-[1.5rem] py-[1rem]">
+          <h3 className="account-action-title font-inter text-[1.125rem] font-semibold text-[#101828]">
             {title}
           </h3>
           <button
@@ -119,7 +119,7 @@ function ModalShell({ title, onClose, children, footer }) {
 
         {children}
 
-        <div className="flex justify-end gap-3 border-t border-[#EAECF0] px-[1.5rem] py-[1rem]">
+        <div className="account-action-footer flex justify-end gap-3 border-t border-[#EAECF0] px-[1.5rem] py-[1rem]">
           {footer}
         </div>
       </div>
@@ -301,7 +301,7 @@ function AccountPage() {
       searchValue={searchQuery}
       onSearchChange={setSearchQuery}
     >
-      <div className="h-full overflow-auto px-[2.6875rem] pb-[2rem] pt-[1.5rem]">
+      <div className="account-page-theme-scope h-full overflow-auto px-[2.6875rem] pb-[2rem] pt-[1.5rem]">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="font-inter text-[1.375rem] font-semibold text-[#101828]">

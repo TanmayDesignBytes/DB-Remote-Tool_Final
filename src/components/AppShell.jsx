@@ -13,8 +13,8 @@ function AppShell({
   onSearchSuggestionSelect,
 }) {
   return (
-    <main className="h-screen w-screen overflow-hidden bg-white">
-      <div className="relative h-full w-full overflow-hidden border border-[#CED9E7] bg-[linear-gradient(to_top,#C8DAF2_0%,#D8E8F7_25%,#FFFFFF_70%)] shadow-[0_0.5rem_1.5rem_rgba(16,24,40,0.08),0_0.25rem_0.75rem_rgba(16,24,40,0.04)]">
+    <main className="app-shell-root h-screen w-screen overflow-hidden bg-white">
+      <div className="app-shell-surface relative h-full w-full overflow-hidden border border-[#CED9E7] bg-[linear-gradient(to_top,#C8DAF2_0%,#D8E8F7_25%,#FFFFFF_70%)] shadow-[0_0.5rem_1.5rem_rgba(16,24,40,0.08),0_0.25rem_0.75rem_rgba(16,24,40,0.04)]">
         <Header
           searchValue={searchValue}
           onSearchChange={onSearchChange}

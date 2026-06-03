@@ -1,10 +1,20 @@
 import React from "react";
 
-function AuthPageShell({ children }) {
+function AuthPageShell({ children, scrollable = false }) {
+  if (scrollable) {
+    return (
+      <div className="login-bg fixed inset-0 overflow-y-auto overflow-x-hidden">
+        <div className="flex min-h-full items-start justify-center px-[1rem] py-[2rem] lg:items-center">
+          {children}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <main className="login-bg flex items-center justify-center px-4 py-8">
+    <div className="login-bg fixed inset-0 flex items-center justify-center overflow-hidden">
       {children}
-    </main>
+    </div>
   );
 }
 

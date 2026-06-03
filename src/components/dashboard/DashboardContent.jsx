@@ -7,7 +7,9 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
-import { ArrowUp, MoreVertical, RefreshCw } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+import { ArrowUp, MapPin, MoreVertical, RefreshCw } from "lucide-react";
 import { cn } from "../../lib/utils";
 import ActionMenu, {
   getDefaultDashboardActionItems,
@@ -38,13 +40,7 @@ const filterTabs = [
   { id: "to-install", label: "To Install" },
 ];
 
-const defaultGroupOptions = [
-  { id: "GCU", label: "GCU" },
-  { id: "Microgrid", label: "Microgrid" },
-  { id: "Koel", label: "Koel" },
-];
-
-const ACTIVE_TAB_WIDTH_REM = 9.19954;
+const defaultGroupOptions = [];
 
 const tabButtonLayout = {
   all: "left-[4.31799rem] w-[1.54356rem]",
@@ -53,12 +49,31 @@ const tabButtonLayout = {
   "to-install": "left-[32.86623rem] w-[5.375rem]",
 };
 
+const ACTIVE_TAB_WIDTH_REM = 9.19954;
+
 const MENU_WIDTH_REM = 12.1875;
 const MENU_GAP_REM = 0.5;
 const VIEWPORT_MARGIN_REM = 1;
 const MENU_ITEM_HEIGHT_REM = 2.125;
 const MENU_VERTICAL_PADDING_REM = 0.5;
 const PENDING_DEVICE_POLL_MS = 10000;
+const DASHBOARD_ROUTE = "/dashboard";
+const ADD_DEVICE_ROUTE = "/dashboard/add-device";
+const FILES_ROUTE_PREFIX = "/dashboard/files-and-folder";
+const RESOURCE_ROUTE_PREFIX = "/dashboard/resource";
+const TERMINAL_ROUTE_PREFIX = "/dashboard/terminal";
+
+function getDeviceRouteIdentifier(device) {
+  return String(device?.deviceIdentifier || "").trim();
+}
+
+function getOverlayDeviceIdentifier(pathname, prefix) {
+  if (!pathname.startsWith(`${prefix}/`)) {
+    return "";
+  }
+
+  return decodeURIComponent(pathname.slice(prefix.length + 1)).trim();
+}
 
 function getPendingTransitionKeys(device) {
   const keys = [];
@@ -351,6 +366,7 @@ function mapDeviceStatus(device) {
   );
   const disabledFlag = toBooleanLike(
     device.is_disabled ??
+      device.isDisabled ??
       device.is_disable ??
       device.isDisable ??
       device.disabled,
@@ -411,10 +427,12 @@ function mapApiDevice(device) {
   );
   const disabledFlag = toBooleanLike(
     device.is_disabled ??
+      device.isDisabled ??
       device.is_disable ??
       device.isDisable ??
       device.disabled,
   );
+
   const accent = getDeviceAccent(status, onlineFlag, disabledFlag);
   const previousStatus =
     status === "disabled"
@@ -450,6 +468,8 @@ function resolveDisabledState(response, fallbackValue) {
   const candidates = [
     response?.is_disabled,
     response?.data?.is_disabled,
+    response?.isDisabled,
+    response?.data?.isDisabled,
     response?.isDisable,
     response?.data?.isDisable,
     response?.disabled,
@@ -506,6 +526,17 @@ function normalizeGroupName(value) {
   return String(value || "").trim();
 }
 
+function getGroupBackendId(group) {
+  return (
+    group?.id ??
+    group?._id ??
+    group?.groupId ??
+    group?.group_id ??
+    group?.uuid ??
+    null
+  );
+}
+
 function getGroupItems(response) {
   const rawGroups = Array.isArray(response?.groups)
     ? response.groups
@@ -518,15 +549,16 @@ function getGroupItems(response) {
   return rawGroups
     .map((group) => {
       if (typeof group === "string") {
+        const groupName = normalizeGroupName(group);
         return {
-          backendId: null,
-          name: normalizeGroupName(group),
+          backendId: groupName || null,
+          name: groupName,
           description: "",
         };
       }
 
       return {
-        backendId: group?.id ?? null,
+        backendId: getGroupBackendId(group),
         name: normalizeGroupName(group?.name),
         description: String(group?.description || "").trim(),
       };
@@ -535,23 +567,10 @@ function getGroupItems(response) {
 }
 
 function buildGroupCards(devices, backendGroups) {
-  const groupMap = new Map(
-    defaultGroupOptions.map((option) => [
-      option.label,
-      {
-        id: `group:${option.label}`,
-        backendId: null,
-        name: option.label,
-        description: "",
-        count: 0,
-      },
-    ]),
-  );
+  const groupMap = new Map();
 
   backendGroups.forEach((group) => {
     const groupKey = normalizeGroupName(group.name);
-    const existing = groupMap.get(groupKey);
-
     if (!groupKey) {
       return;
     }
@@ -560,8 +579,8 @@ function buildGroupCards(devices, backendGroups) {
       id: group.backendId ? `group:${group.backendId}` : `group:${groupKey}`,
       backendId: group.backendId ?? null,
       name: group.name,
-      description: group.description || existing?.description || "",
-      count: existing?.count || 0,
+      description: group.description || "",
+      count: 0,
     });
   });
 
@@ -572,21 +591,15 @@ function buildGroupCards(devices, backendGroups) {
       return;
     }
 
-    const existing = groupMap.get(groupName) || {
-      id: `group:${groupName}`,
-      backendId: null,
-      name: groupName,
-      description: "",
-      count: 0,
-    };
+    const existing = groupMap.get(groupName);
+
+    if (!existing) {
+      return;
+    }
 
     groupMap.set(groupName, {
       ...existing,
       count: existing.count + 1,
-      description:
-        existing.description ||
-        String(device?.description || "").trim() ||
-        `Devices assigned to ${groupName}`,
     });
   });
 
@@ -746,12 +759,12 @@ function CardMeta({ device, isDisabled = false }) {
   return (
     <DeviceFooter
       leadingIcon={
-        <img
-          src="/assets/marker-pin-01.svg"
-          alt=""
+        <MapPin
+          aria-hidden="true"
+          strokeWidth={1.8}
           className={cn(
-            "h-[1.25rem] w-[1.25rem] shrink-0 object-contain transition-all duration-300 ease-out",
-            isDisabled && "opacity-60 grayscale",
+            "dashboard-location-icon h-[1.25rem] w-[1.25rem] shrink-0 text-[#202020] transition-colors duration-300 ease-out",
+            isDisabled && "opacity-60",
           )}
         />
       }
@@ -774,7 +787,7 @@ function ToInstallFooter({ device, isDisabled = false }) {
         isDisabled ? "bg-black/10" : "bg-[#F3F6FD]",
       )}
     >
-      <div className="flex h-[2.0625rem] min-w-0 flex-1 items-center gap-[0.625rem] pr-[0.625rem]">
+      <div className="flex h-[2.0625rem] min-w-0 flex-[1.5] items-center gap-[0.375rem] pr-[0.625rem]">
         <img
           src="/assets/Info_alt_duotone.svg"
           alt=""
@@ -786,7 +799,7 @@ function ToInstallFooter({ device, isDisabled = false }) {
         <span
           title={code}
           className={cn(
-            "min-w-0 truncate font-dmSans text-[1rem] font-medium leading-[2.125rem] tracking-normal transition-colors duration-300 ease-out",
+            "min-w-0 whitespace-nowrap font-dmSans text-[0.9375rem] font-normal leading-[2.125rem] tracking-normal transition-colors duration-300 ease-out",
             isDisabled ? "text-[#9CA3AF]" : "text-black",
           )}
         >
@@ -853,7 +866,7 @@ function DeviceCard({ device, onOpenTerminal, onToggleMenu }) {
           : undefined
       }
       className={cn(
-        "group relative flex h-[13.9375rem] w-[19.6875rem] shrink-0 flex-col justify-center rounded-[0.9375rem] border px-[1.0625rem] pb-[0.75rem] pt-[1.75rem] transition-all duration-300 ease-out",
+        "group relative flex h-[13.9375rem] w-full min-w-0 flex-col justify-center rounded-[0.9375rem] border px-[1.0625rem] pb-[0.75rem] pt-[1.75rem] transition-all duration-300 ease-out",
         isDisabled
           ? "border-[#D1D5DB] bg-black/10"
           : "border-[rgba(217,217,217,0.5)] bg-white hover:shadow-[0_1.25rem_2.5rem_rgba(0,0,0,0.15),0_0.5rem_1rem_rgba(0,0,0,0.10)]",
@@ -1043,6 +1056,8 @@ function DashboardContent({
   onDashboardOverlayChange = undefined,
   onSearchSuggestionsChange = undefined,
 }) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [selectedTab, setSelectedTab] = useState("all");
   const [deviceList, setDeviceList] = useState([]);
   const [backendGroups, setBackendGroups] = useState([]);
@@ -1062,6 +1077,7 @@ function DashboardContent({
   const [deleteDeviceError, setDeleteDeviceError] = useState("");
   const [isDeletingDevice, setIsDeletingDevice] = useState(false);
   const [togglingDeviceId, setTogglingDeviceId] = useState(null);
+  const [toggleDeviceError, setToggleDeviceError] = useState("");
   const [rebootOsDevice, setRebootOsDevice] = useState(null);
   const [rebootOsError, setRebootOsError] = useState("");
   const [isRebootingOs, setIsRebootingOs] = useState(false);
@@ -1085,14 +1101,92 @@ function DashboardContent({
   const tabRefs = useRef({});
   const pendingRefreshIntervalRef = useRef(null);
   const previousPendingDeviceKeysRef = useRef(new Set());
+  const filesRouteDeviceIdentifier = useMemo(
+    () => getOverlayDeviceIdentifier(location.pathname, FILES_ROUTE_PREFIX),
+    [location.pathname],
+  );
+  const resourceRouteDeviceIdentifier = useMemo(
+    () => getOverlayDeviceIdentifier(location.pathname, RESOURCE_ROUTE_PREFIX),
+    [location.pathname],
+  );
+  const terminalRouteDeviceIdentifier = useMemo(
+    () => getOverlayDeviceIdentifier(location.pathname, TERMINAL_ROUTE_PREFIX),
+    [location.pathname],
+  );
+  const isAddDeviceRoute =
+    location.pathname.replace(/\/+$/, "") === ADD_DEVICE_ROUTE;
+  const isFilesRoute = Boolean(filesRouteDeviceIdentifier);
+  const isResourceRoute = Boolean(resourceRouteDeviceIdentifier);
+  const isTerminalRoute = Boolean(terminalRouteDeviceIdentifier);
 
   useEffect(() => {
-    onDashboardOverlayChange?.(Boolean(resourcesDevice || filesDevice));
+    onDashboardOverlayChange?.(
+      Boolean(resourcesDevice || filesDevice || terminalDevice),
+    );
 
     return () => {
       onDashboardOverlayChange?.(false);
     };
-  }, [filesDevice, onDashboardOverlayChange, resourcesDevice]);
+  }, [filesDevice, onDashboardOverlayChange, resourcesDevice, terminalDevice]);
+
+  useEffect(() => {
+    if (isAddDeviceRoute) {
+      setAddDeviceError("");
+      setIsAddDeviceOpen(true);
+      return;
+    }
+
+    if (!isSubmittingDevice) {
+      setIsAddDeviceOpen(false);
+    }
+  }, [isAddDeviceRoute, isSubmittingDevice]);
+
+  useEffect(() => {
+    if (!isFilesRoute) {
+      setFilesDevice(null);
+      return;
+    }
+
+    const nextDevice = deviceList.find(
+      (device) => getDeviceRouteIdentifier(device) === filesRouteDeviceIdentifier,
+    );
+
+    if (nextDevice) {
+      setFilesDevice(nextDevice);
+    }
+  }, [deviceList, filesRouteDeviceIdentifier, isFilesRoute]);
+
+  useEffect(() => {
+    if (!isResourceRoute) {
+      setResourcesDevice(null);
+      return;
+    }
+
+    const nextDevice = deviceList.find(
+      (device) =>
+        getDeviceRouteIdentifier(device) === resourceRouteDeviceIdentifier,
+    );
+
+    if (nextDevice) {
+      setResourcesDevice(nextDevice);
+    }
+  }, [deviceList, isResourceRoute, resourceRouteDeviceIdentifier]);
+
+  useEffect(() => {
+    if (!isTerminalRoute) {
+      setTerminalDevice(null);
+      return;
+    }
+
+    const nextDevice = deviceList.find(
+      (device) =>
+        getDeviceRouteIdentifier(device) === terminalRouteDeviceIdentifier,
+    );
+
+    if (nextDevice) {
+      setTerminalDevice(nextDevice);
+    }
+  }, [deviceList, isTerminalRoute, terminalRouteDeviceIdentifier]);
 
   const loadGroups = useCallback(async () => {
     try {
@@ -1246,7 +1340,15 @@ function DashboardContent({
       pendingRefreshIntervalRef.current = null;
     }
 
-    if (currentPendingDevices.length === 0) {
+    // Stop polling if any modal or edit form is open
+    if (
+      currentPendingDevices.length === 0 ||
+      editingDevice ||
+      deletingDevice ||
+      isAddDeviceOpen ||
+      resourcesDevice ||
+      filesDevice
+    ) {
       return undefined;
     }
 
@@ -1260,7 +1362,7 @@ function DashboardContent({
         pendingRefreshIntervalRef.current = null;
       }
     };
-  }, [deviceList, loadDevices, selectedTab]);
+  }, [deviceList, loadDevices, selectedTab, editingDevice, deletingDevice, isAddDeviceOpen, resourcesDevice, filesDevice]);
 
   useEffect(() => {
     const normalizedQuery = searchQuery.trim();
@@ -1306,19 +1408,19 @@ function DashboardContent({
   }, [deviceList, searchQuery]);
 
   const groupOptions = useMemo(() => {
-    const sourceDevices = searchResults ?? deviceList;
     const optionMap = new Map(
       defaultGroupOptions.map((option) => [option.id, option.label]),
     );
 
-    for (const device of sourceDevices) {
-      if (device.group) {
-        optionMap.set(device.group, device.group);
+    for (const group of backendGroups) {
+      const groupName = normalizeGroupName(group.name);
+      if (groupName) {
+        optionMap.set(groupName, groupName);
       }
     }
 
     return Array.from(optionMap, ([id, label]) => ({ id, label }));
-  }, [deviceList, searchResults]);
+  }, [backendGroups]);
 
   const groupCards = useMemo(
     () => buildGroupCards(deviceList, backendGroups),
@@ -1500,13 +1602,16 @@ function DashboardContent({
         setSelectedGroup(null);
         setSelectedTab("to-install");
         setIsAddDeviceOpen(false);
+        if (location.pathname.replace(/\/+$/, "") === ADD_DEVICE_ROUTE) {
+          navigate(DASHBOARD_ROUTE);
+        }
       } catch (error) {
         setAddDeviceError(error?.message || "Failed to add device");
       } finally {
         setIsSubmittingDevice(false);
       }
     },
-    [isSubmittingDevice],
+    [isSubmittingDevice, location.pathname, navigate],
   );
 
   const handleEditDevice = useCallback(
@@ -1563,36 +1668,41 @@ function DashboardContent({
       }
 
       const isDisabled = device.isDisabled || device.status === "disabled";
+      const originalDevice = device;
       setTogglingDeviceId(device.id);
+      setToggleDeviceError("");
 
-    try {
-      const response = await toggleDevice(device.id, {
-        action: isDisabled ? "enable" : "disable",
-      });
-      const resolvedIsDisabled = resolveDisabledState(response, !isDisabled);
-      const getNextState = (item) => {
-        const previousStatus =
-          item.status === "disabled"
-            ? item.previousStatus || "offline"
-            : item.status || item.previousStatus || "offline";
-        const nextStatus = resolvedIsDisabled ? "disabled" : previousStatus;
-        const nextOnlineFlag =
-          nextStatus === "online"
-            ? true
-            : nextStatus === "offline"
-              ? false
-              : null;
+      try {
+        const response = await toggleDevice(device.id, {
+          action: isDisabled ? "enable" : "disable",
+        });
 
-        return {
-          previousStatus,
-          status: nextStatus,
-          accent: getDeviceAccent(
-            nextStatus,
-            nextOnlineFlag,
-            resolvedIsDisabled,
-          ),
+        // Verify backend response contains expected disabled state
+        const resolvedIsDisabled = resolveDisabledState(response, !isDisabled);
+        
+        const getNextState = (item) => {
+          const previousStatus =
+            item.status === "disabled"
+              ? item.previousStatus || "offline"
+              : item.status || item.previousStatus || "offline";
+          const nextStatus = resolvedIsDisabled ? "disabled" : previousStatus;
+          const nextOnlineFlag =
+            nextStatus === "online"
+              ? true
+              : nextStatus === "offline"
+                ? false
+                : null;
+
+          return {
+            previousStatus,
+            status: nextStatus,
+            accent: getDeviceAccent(
+              nextStatus,
+              nextOnlineFlag,
+              resolvedIsDisabled,
+            ),
+          };
         };
-      };
 
         setDeviceList((current) =>
           current.map((item) =>
@@ -1618,6 +1728,28 @@ function DashboardContent({
                   : item,
               ),
         );
+        
+        // Show success notification
+        const action = isDisabled ? "enabled" : "disabled";
+        toast.success(`Device ${action} successfully`);
+      } catch (error) {
+        // If API call fails, revert UI state to original
+        setDeviceList((current) =>
+          current.map((item) =>
+            item.id === originalDevice.id ? originalDevice : item,
+          ),
+        );
+        setSearchResults((current) =>
+          current == null
+            ? current
+            : current.map((item) =>
+                item.id === originalDevice.id ? originalDevice : item,
+              ),
+        );
+        const errorMessage = error?.message || "Failed to update device state";
+        setToggleDeviceError(errorMessage);
+        toast.error(errorMessage);
+        console.error("Failed to toggle device state:", error);
       } finally {
         setTogglingDeviceId(null);
       }
@@ -1704,12 +1836,28 @@ function DashboardContent({
     if (!isInstallCard && action === "resource") {
       void logResourcesOpened(device.deviceIdentifier).catch(() => {});
       setResourcesDevice(device);
+      navigate(
+        `${RESOURCE_ROUTE_PREFIX}/${encodeURIComponent(getDeviceRouteIdentifier(device))}`,
+      );
     }
 
     if (!isInstallCard && action === "files-and-folder") {
       setFilesDevice(device);
+      navigate(
+        `${FILES_ROUTE_PREFIX}/${encodeURIComponent(getDeviceRouteIdentifier(device))}`,
+      );
     }
-  }, [handleToggleDisable]);
+  }, [handleToggleDisable, navigate]);
+
+  const handleOpenTerminal = useCallback(
+    (device) => {
+      setTerminalDevice(device);
+      navigate(
+        `${TERMINAL_ROUTE_PREFIX}/${encodeURIComponent(getDeviceRouteIdentifier(device))}`,
+      );
+    },
+    [navigate],
+  );
 
   const handleScrollToTop = useCallback(() => {
     dashboardContentRef.current
@@ -1731,12 +1879,12 @@ function DashboardContent({
     <>
       <div
         ref={dashboardContentRef}
-        className="h-full pl-[2.5rem] pr-[1.72rem] pt-[1.5rem] font-inter"
+        className="dashboard-theme-scope h-full pl-[0.75rem] pr-[0.75rem] pt-[1rem] font-inter sm:pl-[2.5rem] sm:pr-[1.72rem] sm:pt-[1.5rem]"
       >
         <div className="w-full">
-          <div className="flex w-full items-center justify-between">
-              <div className="flex items-center gap-[1rem]">
-                <div className="relative h-[3.5625rem] w-[40.625rem] rounded-full border border-[#F0F0F0] bg-white shadow-[0_0.19794rem_0.79175rem_rgba(0,0,0,0.05)]">
+          <div className="flex w-full flex-wrap items-center justify-between gap-[0.75rem] sm:gap-[1rem]">
+              <div className="flex min-w-0 flex-1 items-center gap-[0.75rem] overflow-x-auto sm:gap-[1rem]">
+                <div className="dashboard-filter-shell relative h-[3.5625rem] w-[40.625rem] min-w-[40.625rem] shrink-0 rounded-full border border-[#F0F0F0] bg-white shadow-[0_0.19794rem_0.79175rem_rgba(0,0,0,0.05)] sm:w-full sm:max-w-[40.625rem] sm:min-w-0">
                   <div
                     aria-hidden="true"
                     className="pointer-events-none absolute top-[0.38rem] h-[2.75rem] rounded-[1.36088rem] bg-[#2970FF] shadow-[0_0.19794rem_0.19794rem_rgba(0,0,0,0.15)] transition-all duration-300 ease-out"
@@ -1771,7 +1919,7 @@ function DashboardContent({
                   type="button"
                   onClick={() => void handleRefreshDevices()}
                   disabled={isLoadingDevices || isRefreshingDevices}
-                  className="flex h-[3.5rem] w-[3.5rem] shrink-0 items-center justify-center rounded-full border border-[#F0F0F0] bg-white text-[#2970FF] shadow-[0_0.19794rem_0.79175rem_rgba(0,0,0,0.05)] transition-all duration-200 ease-out hover:border-[#D6E4FF] hover:bg-[#F4F7FE] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="dashboard-refresh-button flex h-[3.5rem] w-[3.5rem] shrink-0 items-center justify-center rounded-full border border-[#F0F0F0] bg-white text-[#2970FF] shadow-[0_0.19794rem_0.79175rem_rgba(0,0,0,0.05)] transition-all duration-200 ease-out hover:border-[#D6E4FF] hover:bg-[#F4F7FE] disabled:cursor-not-allowed disabled:opacity-60"
                   aria-label="Refresh devices"
                   title="Refresh devices"
                 >
@@ -1784,13 +1932,13 @@ function DashboardContent({
                 </button>
               </div>
 
-              <div className="flex items-center justify-end gap-[1.5rem]">
+              <div className="flex shrink-0 items-center justify-end gap-[0.75rem] sm:gap-[1.5rem]">
                 <div ref={groupMenuRef} className="relative">
                   <button
                     type="button"
                     onClick={() => setGroupMenuOpen((value) => !value)}
                     className={cn(
-                      "flex h-[3.5rem] w-[14.44rem] items-center justify-between rounded-[0.625rem] border pl-[1.875rem] pr-[1.25rem] font-inter text-[1rem] font-semibold leading-[1.18763rem]",
+                      "dashboard-group-button flex h-[3.5rem] w-[7rem] items-center justify-between rounded-[0.625rem] border pl-[1rem] pr-[0.75rem] font-inter text-[0.875rem] font-semibold leading-[1.18763rem] sm:w-[14.44rem] sm:pl-[1.875rem] sm:pr-[1.25rem] sm:text-[1rem]",
                       selectedGroup
                         ? "border-[#2970FF] bg-[#F0F4F8] text-[#2970FF]"
                         : "border-[#ECECEC] bg-white text-[rgba(0,0,0,0.75)]",
@@ -1810,7 +1958,7 @@ function DashboardContent({
                   </button>
 
                 {groupMenuOpen && (
-                  <div className="absolute left-0 top-full z-50 mt-2 w-[14.44rem] rounded-[0.5rem] border border-[#ECECEC] bg-white py-1 shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25),0_0.75rem_1.25rem_rgba(7,6,18,0.25)]">
+                  <div className="dashboard-group-menu absolute left-0 top-full z-50 mt-2 w-[14.44rem] rounded-[0.5rem] border border-[#ECECEC] bg-white py-1 shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25),0_0.75rem_1.25rem_rgba(7,6,18,0.25)]">
                     {selectedGroup ? (
                       <>
                         <button
@@ -1847,10 +1995,11 @@ function DashboardContent({
 
                 <button
                   type="button"
-                  className="flex h-[3.5rem] w-[9.25rem] items-center justify-center gap-[0.13rem] rounded-[1.75rem] bg-[linear-gradient(118deg,#2970FF_9.79%,#193D9E_97.55%)] font-inter text-[1rem] font-semibold leading-[1.18763rem] text-white"
+                  className="flex h-[3.5rem] w-[3.5rem] items-center justify-center gap-[0.13rem] rounded-[1.75rem] bg-[linear-gradient(118deg,#2970FF_9.79%,#193D9E_97.55%)] font-inter text-[1rem] font-semibold leading-[1.18763rem] text-white sm:w-[9.25rem]"
                   onClick={() => {
                     setAddDeviceError("");
                     setIsAddDeviceOpen(true);
+                    navigate(ADD_DEVICE_ROUTE);
                   }}
                 >
                   <img
@@ -1858,26 +2007,26 @@ function DashboardContent({
                     alt=""
                     className="h-[1.3125rem] w-[1.3125rem] shrink-0"
                   />
-                  <span className="h-[1.125rem] w-[5.5625rem] text-left">
+                  <span className="hidden h-[1.125rem] w-[5.5625rem] text-left sm:block">
                     Add Device
                   </span>
                 </button>
               </div>
             </div>
 
-          <div className="-ml-[0.75rem] mt-[1.53rem] h-px w-[calc(100%+0.75rem)] bg-[#ECECEC]" />
+          <div className="dashboard-divider mt-[1.53rem] h-px w-full bg-[#ECECEC]" />
 
           {emptyStateMessage ? (
-            <div className="mt-[1.375rem] flex h-[13.9375rem] w-[81.625rem] items-center justify-center rounded-[0.9375rem] bg-white px-6 text-center font-inter text-[1rem] font-medium text-[#5D657D]">
+            <div className="dashboard-empty-state mt-[1.375rem] flex h-[13.9375rem] w-full items-center justify-center rounded-[0.9375rem] bg-white px-6 text-center font-inter text-[1rem] font-medium text-[#5D657D]">
               {emptyStateMessage}
             </div>
           ) : (
-            <div className="mt-[1.375rem] grid w-[81.625rem] grid-cols-4 gap-x-[1.25rem] gap-y-[2.25rem]">
+            <div className="mt-[1rem] grid w-full grid-cols-1 gap-x-[0.75rem] gap-y-[1rem] sm:mt-[1.375rem] sm:grid-cols-2 sm:gap-x-[1.25rem] sm:gap-y-[2.25rem] lg:grid-cols-3 xl:grid-cols-4">
               {filteredDevices.map((device) => (
                 <DeviceCard
                   key={device.id}
                   device={device}
-                  onOpenTerminal={(nextDevice) => setTerminalDevice(nextDevice)}
+                  onOpenTerminal={handleOpenTerminal}
                   onToggleMenu={(event) =>
                     handleToggleMenu(device, event.currentTarget)
                   }
@@ -1896,7 +2045,7 @@ function DashboardContent({
         aria-label="Return to top"
         title="Return to top"
         className={cn(
-          "fixed bottom-[3rem] right-[3rem] z-30 flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full bg-[#2970FF] text-white shadow-[0_0.35rem_1rem_rgba(41,112,255,0.34)] transition-all duration-200 ease-out hover:bg-[#205FE0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2970FF] focus-visible:ring-offset-2",
+          "fixed bottom-[3rem] right-[3rem] z-30 flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-full border border-[#356FE8] bg-[linear-gradient(90deg,#3973EE_0%,#356FE8_55%,#2F67E0_100%)] text-white shadow-[0_0.35rem_1rem_rgba(41,112,255,0.34)] transition-all duration-200 ease-out hover:border-[#5F8EF5] hover:bg-[linear-gradient(90deg,#5488FA_0%,#3C76F2_42%,#2C64DF_100%)] hover:shadow-[0_0.625rem_1.375rem_rgba(41,112,255,0.2),0_0_0_0.0625rem_rgba(95,142,245,0.55)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2970FF] focus-visible:ring-offset-2",
           isScrollTopVisible
             ? "pointer-events-auto translate-y-0 opacity-100"
             : "pointer-events-none translate-y-[0.5rem] opacity-0",
@@ -1992,19 +2141,34 @@ function DashboardContent({
       <DeviceTerminalModal
         open={Boolean(terminalDevice)}
         device={terminalDevice}
-        onClose={() => setTerminalDevice(null)}
+        onClose={() => {
+          setTerminalDevice(null);
+          if (location.pathname.startsWith(TERMINAL_ROUTE_PREFIX)) {
+            navigate(DASHBOARD_ROUTE);
+          }
+        }}
       />
 
       <DeviceResourcesModal
         open={Boolean(resourcesDevice)}
         device={resourcesDevice}
-        onClose={() => setResourcesDevice(null)}
+        onClose={() => {
+          setResourcesDevice(null);
+          if (location.pathname.startsWith(RESOURCE_ROUTE_PREFIX)) {
+            navigate(DASHBOARD_ROUTE);
+          }
+        }}
       />
 
       <DeviceFilesModal
         open={Boolean(filesDevice)}
         device={filesDevice}
-        onClose={() => setFilesDevice(null)}
+        onClose={() => {
+          setFilesDevice(null);
+          if (location.pathname.startsWith(FILES_ROUTE_PREFIX)) {
+            navigate(DASHBOARD_ROUTE);
+          }
+        }}
       />
 
       <AddDeviceModal
@@ -2015,6 +2179,9 @@ function DashboardContent({
           }
           setAddDeviceError("");
           setIsAddDeviceOpen(false);
+          if (location.pathname.replace(/\/+$/, "") === ADD_DEVICE_ROUTE) {
+            navigate(DASHBOARD_ROUTE);
+          }
         }}
         onConfirm={handleConfirmAddDevice}
         groupOptions={groupOptions.map((option) => option.label)}

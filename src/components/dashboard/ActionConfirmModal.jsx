@@ -47,7 +47,7 @@ function ActionConfirmModal({
       />
       <div className="fixed inset-0 z-[1001] flex items-center justify-center px-4 py-6">
         <div
-          className="w-[min(90vw,30rem)] rounded-[1.125rem] bg-white px-8 py-9 shadow-[0_1.5rem_4rem_rgba(15,23,42,0.18)]"
+          className="themed-dialog action-confirm-modal w-[min(90vw,30rem)] rounded-[1.125rem] bg-white px-8 py-9 shadow-[0_1.5rem_4rem_rgba(15,23,42,0.18)]"
           role="dialog"
           aria-modal="true"
           onClick={(event) => event.stopPropagation()}

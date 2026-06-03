@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "react-toastify";
 import { getResources, sendResourceAction } from "../../lib/api.js";
 
 function BackIcon() {
@@ -147,6 +148,12 @@ function DeviceResourcesModal({ open, device, onClose }) {
       return undefined;
     }
 
+    // Clear old data when device changes
+    setResourcesData({});
+    setErrorMessage("");
+    setCpuHistory([]);
+    setMemoryHistory([]);
+
     const fetchData = async () => {
       try {
         const data = await getResources(deviceIdentifier);
@@ -165,7 +172,9 @@ function DeviceResourcesModal({ open, device, onClose }) {
           setMemoryHistory((prev) => [...prev, memoryUsage].slice(-30));
         }
       } catch (error) {
-        setErrorMessage(error?.message || "Failed to load resource data.");
+        const errorMsg = error?.message || "Failed to load resource data.";
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
       }
     };
 
@@ -234,7 +243,7 @@ function DeviceResourcesModal({ open, device, onClose }) {
       />
       <div className="fixed inset-0 z-[1001]">
         <div
-          className="flex h-full w-full overflow-hidden bg-white shadow-[0_1.75rem_4.5rem_rgba(15,23,42,0.18)]"
+          className="fullscreen-tool-modal device-resources-modal flex h-full w-full overflow-hidden bg-white shadow-[0_1.75rem_4.5rem_rgba(15,23,42,0.18)]"
           role="dialog"
           aria-modal="true"
           onClick={(event) => event.stopPropagation()}

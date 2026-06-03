@@ -8,10 +8,8 @@ import React, {
 import {
   AlertCircle,
   LoaderCircle,
-  Lock,
   Maximize2,
   Monitor,
-  Server,
   Unplug,
 } from "lucide-react";
 import RemoteDesktopViewer from "./RemoteDesktopViewer.jsx";
@@ -102,7 +100,6 @@ function StatusPill({ status }) {
 }
 
 function Field({
-  icon,
   label,
   value,
   onChange,
@@ -110,22 +107,33 @@ function Field({
   placeholder,
   inputMode,
 }) {
+  const [isFocused, setIsFocused] = useState(false);
+  const isFilled = String(value ?? "").trim().length > 0;
+
   return (
-    <label className="block">
-      <span className="mb-[0.625rem] block font-inter text-[0.875rem] font-semibold text-[#344054]">
+    <label className="remote-field block w-full ml-[1.5rem]">
+      <span
+        className="mb-[0.375rem] block text-[0.875rem] font-normal leading-[1.25rem] text-[#344054]"
+        style={{ fontFamily: "Poppins, sans-serif", fontStyle: "normal" }}
+      >
         {label}
       </span>
-      <div className="flex items-center gap-[0.75rem] rounded-[1rem] border border-[#D9E2F0] bg-white px-[1rem] py-[0.9375rem] shadow-[inset_0_0.0625rem_0_rgba(255,255,255,0.5)] transition focus-within:border-[#84ADFF] focus-within:ring-[0_0_0_0.25rem_rgba(41,112,255,0.10)]">
-        <span className="flex h-[2.25rem] w-[2.25rem] shrink-0 items-center justify-center rounded-[0.875rem] bg-[#EEF4FF] text-[#2970FF] shadow-[0_0.125rem_0.5rem_rgba(15,23,42,0.06)]">
-          {icon}
-        </span>
+      <div
+        className={`remote-field-shell flex h-[2.875rem] w-[calc(100%-1.5rem)] items-center gap-[0.625rem] overflow-hidden rounded-[0.5rem] border pl-[0.5rem] pr-[0.875rem] py-[0.625rem] shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] transition-[background-color,border-color,box-shadow] duration-200 focus-within:ring-2 focus-within:ring-[#2970FF]/20 ${
+          isFilled && !isFocused
+            ? "border-[#D5DDEB] bg-[#F8FAFC]"
+            : "border-[#D0D5DD] bg-white"
+        }`}
+      >
         <input
           type={type}
           inputMode={inputMode}
           value={value}
           placeholder={placeholder}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full bg-transparent font-inter text-[0.9375rem] font-semibold text-[#101828] outline-none placeholder:text-[#98A2B3]"
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className="w-full bg-transparent font-inter text-[1rem] font-normal leading-[1.5rem] text-[#1F2937] outline-none placeholder:text-[#B5BAC1]"
         />
       </div>
     </label>
@@ -140,12 +148,12 @@ function ActionButton({
   className = "",
 }) {
   const baseClassName =
-    "flex h-[3.125rem] items-center justify-center gap-[0.625rem] rounded-[1rem] font-inter text-[0.9375rem] font-semibold transition-all disabled:cursor-not-allowed disabled:opacity-50";
+    "flex h-[3.125rem] items-center justify-center font-inter text-[1rem] font-semibold leading-[1.5rem] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-80";
 
   const variantClassName =
     variant === "primary"
-      ? "bg-[linear-gradient(118deg,#4A73FF_9.79%,#2747B8_97.55%)] text-white shadow-[0_0.875rem_1.75rem_rgba(41,112,255,0.24)] hover:translate-y-[-0.0625rem]"
-      : "border border-[#D9E2F0] bg-white text-[#344054] shadow-[0_0.375rem_1rem_rgba(15,23,42,0.04)] hover:bg-[#F8FAFC]";
+      ? "gap-[0.375rem] rounded-[6.25rem] border border-[#356FE8] bg-[linear-gradient(90deg,#3973EE_0%,#356FE8_55%,#2F67E0_100%)] px-[1rem] py-[0.625rem] text-white shadow-[0_0.0625rem_0.125rem_rgba(16,24,40,0.05)] hover:border-[#5F8EF5] hover:bg-[linear-gradient(90deg,#5488FA_0%,#3C76F2_42%,#2C64DF_100%)] hover:shadow-[0_0.625rem_1.375rem_rgba(41,112,255,0.2),0_0_0_0.0625rem_rgba(95,142,245,0.55)]"
+      : "gap-[0.625rem] rounded-[1rem] border border-[#D9E2F0] bg-white text-[#344054] shadow-[0_0.375rem_1rem_rgba(15,23,42,0.04)] hover:bg-[#F8FAFC]";
 
   return (
     <button
@@ -259,17 +267,17 @@ function RemoteContent({ onNavigateDashboard }) {
 
   return (
     <>
-      <div className="h-full overflow-hidden bg-[#F4F7FB] px-[1.5rem] pb-[1rem] pt-[0.5rem] text-slate-900">
+      <div className="remote-theme-scope h-full overflow-hidden px-[1.5rem] pb-[1rem] pt-[0.5rem] text-slate-900">
         <div className="mx-auto flex h-full w-full max-w-[96rem] flex-col">
           <div className="mb-[0.625rem] flex items-center justify-between pl-[1rem] pt-[0.375rem]">
-            <h1 className="font-inter text-[1.125rem] font-semibold leading-[1.18763rem] text-[rgba(0,0,0,0.75)]">
+            <h1 className="remote-page-title font-inter text-[1.125rem] font-semibold leading-[1.18763rem] text-[rgba(0,0,0,0.75)]">
               Remote Detail
             </h1>
             <StatusPill status={viewerState.status} />
           </div>
 
           <div className="flex min-h-0 flex-1 items-stretch gap-[1.5rem]">
-            <aside className="flex h-full w-[27rem] shrink-0 flex-col rounded-[2rem] border border-[#E5ECF6] bg-white p-[1.5rem] shadow-[0_1.5rem_3rem_rgba(148,163,184,0.16)]">
+            <aside className="remote-control-card flex h-full w-[27rem] shrink-0 flex-col rounded-[2rem] border border-[#E5ECF6] bg-white p-[1.5rem] shadow-[0_1.5rem_3rem_rgba(148,163,184,0.16)]">
               <div className="mb-[1.5rem] flex items-center gap-[1rem]">
                 <div className="grid h-[4rem] w-[4rem] place-items-center rounded-[1.25rem] bg-[#EEF4FF] text-[#2970FF] ring-1 ring-[#D8E4FF]">
                   <Monitor className="h-[2rem] w-[2rem]" />
@@ -278,16 +286,15 @@ function RemoteContent({ onNavigateDashboard }) {
                   <h2 className="font-inter text-[1.125rem] font-bold text-slate-950">
                     Connection details
                   </h2>
-                  <p className="mt-[0.25rem] font-inter text-[0.875rem] text-slate-500">
+                  <p className="mt-[0.25rem] font-dmSans text-[0.875rem] font-medium leading-[1.5rem] text-[#5D657D]">
                     Keep these values in sync with your VNC server.
                   </p>
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 overflow-y-auto pr-[0.25rem]">
-                <div className="space-y-[1rem]">
+              <div className="remote-detail-scroll min-h-0 flex-1">
+                <div className="w-full space-y-[1rem]">
                   <Field
-                    icon={<Server className="h-[1.125rem] w-[1.125rem]" />}
                     label="IP Address"
                     value={ipAddress}
                     onChange={setIpAddress}
@@ -296,7 +303,6 @@ function RemoteContent({ onNavigateDashboard }) {
 
                   <div className="grid gap-[1rem] xl:grid-cols-1">
                     <Field
-                      icon={<Monitor className="h-[1.125rem] w-[1.125rem]" />}
                       label="VNC Port"
                       value={port}
                       onChange={setPort}
@@ -305,7 +311,6 @@ function RemoteContent({ onNavigateDashboard }) {
                     />
 
                     <Field
-                      icon={<Lock className="h-[1.125rem] w-[1.125rem]" />}
                       label="Password"
                       value={password}
                       onChange={setPassword}
@@ -421,7 +426,7 @@ function RemoteContent({ onNavigateDashboard }) {
 
       {disconnectModalOpen ? (
         <div className="fixed inset-0 z-[95] flex items-center justify-center bg-[rgba(3,7,18,0.62)] px-[1rem] backdrop-blur-[0.125rem]">
-          <div className="w-full max-w-[28.75rem] rounded-[1.5rem] border border-[#e4e7ec] bg-white p-[1.5rem] shadow-[0_1.5rem_4rem_rgba(2,6,23,0.24)]">
+          <div className="themed-dialog remote-disconnect-modal w-full max-w-[28.75rem] rounded-[1.5rem] border border-[#e4e7ec] bg-white p-[1.5rem] shadow-[0_1.5rem_4rem_rgba(2,6,23,0.24)]">
             <div className="flex h-[3.5rem] w-[3.5rem] items-center justify-center rounded-[1.125rem] bg-[#fef3f2] text-[#d92d20]">
               <AlertCircle className="h-[1.75rem] w-[1.75rem]" />
             </div>

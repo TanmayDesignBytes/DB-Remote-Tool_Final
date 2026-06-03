@@ -7,6 +7,9 @@ import React, {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
+import { MoreVertical } from "lucide-react";
+import { toast } from "react-toastify";
 import ActionConfirmModal from "../dashboard/ActionConfirmModal.jsx";
 import {
   createGroup,
@@ -17,11 +20,7 @@ import {
 } from "../../lib/api.js";
 import AddGroupModal from "./AddGroupModal.jsx";
 
-const defaultGroupOptions = [
-  { id: "GCU", label: "GCU" },
-  { id: "Microgrid", label: "Microgrid" },
-  { id: "Koel", label: "Koel" },
-];
+const defaultGroupOptions = [];
 
 const groupMenuActions = [
   { label: "Edit", iconSrc: "/assets/edit-03.svg" },
@@ -53,6 +52,17 @@ const VIEWPORT_MARGIN_REM = 1;
 
 function normalizeGroupName(value) {
   return String(value || "").trim();
+}
+
+function getGroupBackendId(group) {
+  return (
+    group?.id ??
+    group?._id ??
+    group?.groupId ??
+    group?.group_id ??
+    group?.uuid ??
+    null
+  );
 }
 
 function getDeviceItems(response) {
@@ -89,15 +99,16 @@ function getGroupItems(response) {
   return rawGroups
     .map((group) => {
       if (typeof group === "string") {
+        const groupName = normalizeGroupName(group);
         return {
-          backendId: null,
-          name: normalizeGroupName(group),
+          backendId: groupName || null,
+          name: groupName,
           description: "",
         };
       }
 
       return {
-        backendId: group?.id ?? null,
+        backendId: getGroupBackendId(group),
         name: normalizeGroupName(group?.name),
         description: String(group?.description || "").trim(),
       };
@@ -106,23 +117,10 @@ function getGroupItems(response) {
 }
 
 function buildGroupCards(devices, backendGroups) {
-  const groupMap = new Map(
-    defaultGroupOptions.map((option) => [
-      option.label,
-      {
-        id: `group:${option.label}`,
-        backendId: null,
-        name: option.label,
-        description: "",
-        count: 0,
-      },
-    ]),
-  );
+  const groupMap = new Map();
 
   backendGroups.forEach((group) => {
     const groupKey = normalizeGroupName(group.name);
-    const existing = groupMap.get(groupKey);
-
     if (!groupKey) {
       return;
     }
@@ -131,8 +129,8 @@ function buildGroupCards(devices, backendGroups) {
       id: group.backendId ? `group:${group.backendId}` : `group:${groupKey}`,
       backendId: group.backendId ?? null,
       name: group.name,
-      description: group.description || existing?.description || "",
-      count: existing?.count || 0,
+      description: group.description || "",
+      count: 0,
     });
   });
 
@@ -143,21 +141,15 @@ function buildGroupCards(devices, backendGroups) {
       return;
     }
 
-    const existing = groupMap.get(groupName) || {
-      id: `group:${groupName}`,
-      backendId: null,
-      name: groupName,
-      description: "",
-      count: 0,
-    };
+    const existing = groupMap.get(groupName);
+
+    if (!existing) {
+      return;
+    }
 
     groupMap.set(groupName, {
       ...existing,
       count: existing.count + 1,
-      description:
-        existing.description ||
-        String(device?.description || "").trim() ||
-        `Devices assigned to ${groupName}`,
     });
   });
 
@@ -172,7 +164,7 @@ function buildGroupCards(devices, backendGroups) {
 
 function GroupActionMenu({ onSelectAction }) {
   return (
-    <div className="flex w-[10.4375rem] flex-col items-start rounded-[0.5rem] border border-[rgba(234,236,240,0.5)] bg-white py-[0.25rem] shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25),0_0.75rem_1.25rem_rgba(7,6,18,0.25)]">
+    <div className="group-action-menu flex w-[10.4375rem] flex-col items-start rounded-[0.5rem] border border-[rgba(234,236,240,0.5)] bg-white py-[0.25rem] shadow-[0_0.25rem_0.25rem_rgba(0,0,0,0.25),0_0.75rem_1.25rem_rgba(7,6,18,0.25)]">
       {groupMenuActions.map(({ label, iconSrc, disabled = false, hint }) => (
         <div
           key={label}
@@ -320,7 +312,7 @@ function FixedGroupActionMenu({ anchorEl, onClose, onSelectAction }) {
 
 function GroupCard({ group, onToggleMenu }) {
   return (
-    <article className="flex h-[9.375rem] w-[19.6875rem] shrink-0 items-center rounded-[0.9375rem] border border-[rgba(217,217,217,0.5)] bg-white px-[1.0625rem] pb-[1.51519rem] pt-[1.75rem] transition-all duration-300 ease-out hover:shadow-[0_1.25rem_2.5rem_rgba(0,0,0,0.15),0_0.5rem_1rem_rgba(0,0,0,0.10)]">
+    <article className="group-card flex h-[9.375rem] w-[19.6875rem] shrink-0 items-center rounded-[0.9375rem] border border-[rgba(217,217,217,0.5)] bg-white px-[1.0625rem] pb-[1.51519rem] pt-[1.75rem] transition-all duration-300 ease-out hover:shadow-[0_1.25rem_2.5rem_rgba(0,0,0,0.15),0_0.5rem_1rem_rgba(0,0,0,0.10)]">
       <div className="flex h-full w-full items-start gap-[0.5rem]">
         <div className="flex h-[2.0625rem] w-[2.0625rem] shrink-0 items-center justify-center rounded-[0.4375rem] bg-[#F4F7FE] px-[0.625rem] pb-[0.4375rem] pt-[0.5rem]">
           <img
@@ -339,14 +331,16 @@ function GroupCard({ group, onToggleMenu }) {
             <button
               type="button"
               aria-label={`${group.name} actions`}
-              className="flex h-[1.71025rem] w-[1.6865rem] shrink-0 items-center justify-center rounded-[0.25rem] opacity-70 hover:bg-[#F4F6FB]"
-              onClick={onToggleMenu}
+              className="flex h-[1.875rem] w-[1.875rem] shrink-0 items-center justify-center text-[#3A3A3E] transition-opacity hover:opacity-70"
+              onClick={(event) => {
+                event.stopPropagation();
+                onToggleMenu?.(event);
+              }}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+              }}
             >
-              <img
-                src="/assets/dots-horizontal.svg"
-                alt=""
-                className="h-[1.71025rem] w-[1.6865rem] object-contain"
-              />
+              <MoreVertical className="h-[1.6875rem] w-[1.6875rem]" />
             </button>
           </div>
 
@@ -365,6 +359,7 @@ function GroupCard({ group, onToggleMenu }) {
 }
 
 function GroupContent({ searchQuery = "" }) {
+  const navigate = useNavigate();
   const [devices, setDevices] = useState([]);
   const [groups, setGroups] = useState([]);
   const [groupOverrides, setGroupOverrides] = useState({});
@@ -418,6 +413,23 @@ function GroupContent({ searchQuery = "" }) {
     void loadDevices();
     void loadGroups();
   }, [loadDevices, loadGroups]);
+
+  // Update URL when add/edit/delete group modal state changes
+  useEffect(() => {
+    if (deletingGroup) {
+      // Deleting group
+      navigate(`/dashboard/group/${deletingGroup.backendId}/delete`, { replace: true });
+    } else if (isAddGroupOpen && editingGroup) {
+      // Editing group
+      navigate(`/dashboard/group/${editingGroup.backendId}/edit`, { replace: true });
+    } else if (isAddGroupOpen) {
+      // Adding new group
+      navigate("/dashboard/group/add-group", { replace: true });
+    } else {
+      // Base state - go back to group page
+      navigate("/dashboard/group", { replace: true });
+    }
+  }, [isAddGroupOpen, editingGroup, deletingGroup, navigate]);
 
   const handleToggleMenu = (groupId, anchorEl) => {
     setOpenMenu((current) => {
@@ -486,18 +498,19 @@ function GroupContent({ searchQuery = "" }) {
             description: trimmedDescription,
           });
 
-          const updatedGroup = response?.data || {
+          // Handle both response.data and direct response formats
+          const updatedGroup = response?.data || response || {
             id: editingGroup.backendId,
             name: trimmedName,
             description: trimmedDescription,
           };
 
           await loadGroups([
-            {
-              backendId: updatedGroup.id ?? editingGroup.backendId,
-              name: updatedGroup.name || trimmedName,
-              description: updatedGroup.description ?? trimmedDescription,
-            },
+          {
+            backendId: getGroupBackendId(updatedGroup) ?? editingGroup.backendId,
+            name: updatedGroup.name || trimmedName,
+            description: updatedGroup.description ?? trimmedDescription,
+          },
           ]);
 
           setGroupOverrides((current) => {
@@ -520,10 +533,10 @@ function GroupContent({ searchQuery = "" }) {
           description: trimmedDescription,
         });
 
-        const savedGroup = response?.data || {};
+        const savedGroup = response?.data || response || {};
         await loadGroups([
           {
-            backendId: savedGroup.id ?? null,
+            backendId: getGroupBackendId(savedGroup),
             name: savedGroup.name || trimmedName,
             description: savedGroup.description ?? trimmedDescription,
           },
@@ -536,8 +549,18 @@ function GroupContent({ searchQuery = "" }) {
       setIsAddGroupOpen(false);
       setEditingGroup(null);
       setGroupErrorMessage("");
+      
+      // Show success notification
+      if (editingGroup) {
+        toast.success("Group updated successfully");
+      } else {
+        toast.success("Group created successfully");
+      }
     } catch (error) {
-      setGroupErrorMessage(error?.message || "Unable to save group right now.");
+      const errorMsg = error?.message || "Unable to save group right now.";
+      setGroupErrorMessage(errorMsg);
+      toast.error(errorMsg);
+      console.error("Group save error:", error);
     } finally {
       setIsSubmittingGroup(false);
     }
@@ -607,9 +630,9 @@ function GroupContent({ searchQuery = "" }) {
 
   return (
     <>
-      <div className="h-full pl-[3.625rem] pr-[2.5625rem] pt-[1.5rem]">
+      <div className="group-theme-scope h-full pl-[3.625rem] pr-[2.5625rem] pt-[1.5rem]">
         <div className="flex items-start justify-between">
-          <h1 className="-ml-[0.9375rem] font-inter text-[1.125rem] font-semibold leading-[1.18763rem] text-[rgba(0,0,0,0.75)]">
+          <h1 className="group-page-title -ml-[0.9375rem] font-inter text-[1.125rem] font-semibold leading-[1.18763rem] text-[rgba(0,0,0,0.75)]">
             Group Details
           </h1>
 
@@ -634,7 +657,7 @@ function GroupContent({ searchQuery = "" }) {
           </button>
         </div>
 
-        <div className="-ml-[2.6875rem] mt-[1.5rem] h-px w-[calc(100%+2.6875rem)] bg-[#ECECEC]" />
+        <div className="group-page-divider -ml-[2.6875rem] mt-[1.5rem] h-px w-[calc(100%+2.6875rem)] bg-[#ECECEC]" />
 
         {filteredGroups.length > 0 ? (
           <div className="-ml-[1.505rem] -mr-[1.05rem] mt-[1.875rem] flex flex-wrap items-start gap-[0.9375rem]">
@@ -649,7 +672,7 @@ function GroupContent({ searchQuery = "" }) {
             ))}
           </div>
         ) : (
-          <div className="mt-[1.875rem] flex min-h-[12rem] w-full items-center justify-center px-[1.5rem] text-center font-dmSans text-[1.125rem] font-medium leading-[1.75rem] text-[#5D657D]">
+          <div className="group-empty-state mt-[1.875rem] flex min-h-[12rem] w-full items-center justify-center px-[1.5rem] text-center font-dmSans text-[1.125rem] font-medium leading-[1.75rem] text-[#5D657D]">
             No groups found from your device cards yet.
           </div>
         )}

@@ -2,11 +2,10 @@
 export default {
   content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
   theme: {
-    screens: {
-      "base-1513": "1513px",
-    },
-
     extend: {
+      screens: {
+        "base-1513": "1513px",
+      },
       fontFamily: {
         inter: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
         dmSans: [

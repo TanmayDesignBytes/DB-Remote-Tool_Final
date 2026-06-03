@@ -61,6 +61,13 @@ export function loginUser(payload) {
   });
 }
 
+export function signupUser(payload) {
+  return apiRequest("/auth/signup", {
+    method: "POST",
+    body: payload,
+  });
+}
+
 export function forgotPassword(payload) {
   return apiRequest("/auth/forgot-password", {
     method: "POST",
@@ -264,7 +271,9 @@ export function uploadFile(
   deviceIdentifier,
   formData,
   token = getStoredAuthToken(),
+  options = {},
 ) {
+  const { onProgress } = options;
   const normalizedFormData = new FormData();
   for (const [key, value] of formData.entries()) {
     if (key === "destinationpath" && typeof value === "string") {
@@ -274,14 +283,66 @@ export function uploadFile(
     normalizedFormData.append(key, value);
   }
 
-  return apiRequest(
-    `/files/${encodeURIComponent(deviceIdentifier)}/upload-file`,
-    {
-      method: "POST",
-      body: normalizedFormData,
-      token,
-    },
-  );
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(
+      "POST",
+      `${API_BASE_URL}/files/${encodeURIComponent(deviceIdentifier)}/upload-file`,
+    );
+
+    if (token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+    }
+
+    xhr.upload.onprogress = (event) => {
+      if (!event.lengthComputable || typeof onProgress !== "function") {
+        return;
+      }
+
+      onProgress({
+        loaded: event.loaded,
+        total: event.total,
+        percent: Math.round((event.loaded / event.total) * 100),
+      });
+    };
+
+    xhr.onload = () => {
+      const contentType = xhr.getResponseHeader("content-type") || "";
+      let data = xhr.responseText;
+
+      if (contentType.includes("application/json") && xhr.responseText) {
+        try {
+          data = JSON.parse(xhr.responseText);
+        } catch {
+          data = xhr.responseText;
+        }
+      }
+
+      if (xhr.status < 200 || xhr.status >= 300) {
+        const message =
+          typeof data === "object" && data?.message
+            ? data.message
+            : xhr.status === 413
+              ? "File is too large for the server upload limit."
+              : `Request failed with status ${xhr.status}`;
+
+        reject(new ApiError(message, xhr.status, data));
+        return;
+      }
+
+      resolve(data);
+    };
+
+    xhr.onerror = () => {
+      reject(new ApiError("Network error while uploading file.", 0, null));
+    };
+
+    xhr.onabort = () => {
+      reject(new ApiError("Upload was cancelled.", 0, null));
+    };
+
+    xhr.send(normalizedFormData);
+  });
 }
 
 export function deleteStoredFile(

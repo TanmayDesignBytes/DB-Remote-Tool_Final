@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import AuthCardShell from "../components/auth/AuthCardShell.jsx";
-import AuthFeedbackMessage from "../components/auth/AuthFeedbackMessage.jsx";
 import AuthPageShell from "../components/auth/AuthPageShell.jsx";
 import FormField from "../components/auth/FormField.jsx";
 import { forgotPassword } from "../lib/api.js";
@@ -10,8 +10,6 @@ function ForgotPasswordPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [statusMessage, setStatusMessage] = useState("");
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -19,33 +17,30 @@ function ForgotPasswordPage() {
     const normalizedEmail = email.trim();
 
     if (!normalizedEmail) {
-      setErrorMessage("Enter your email to continue.");
+      toast.error("Enter your email to continue.");
       return;
     }
 
     setIsSubmitting(true);
-    setErrorMessage("");
-    setStatusMessage("");
 
     try {
       const response = await forgotPassword({ email: normalizedEmail });
 
       if (response?.token) {
+        toast.success("Reset token received. Redirecting to reset page...");
         navigate(`/reset-password?token=${encodeURIComponent(response.token)}`, {
           state: {
             email: normalizedEmail,
-            statusMessage:
-              "Reset token received for testing. It has been filled into the next form.",
           },
         });
         return;
       }
 
-      setStatusMessage(
+      toast.success(
         response?.message || "Reset request submitted. Check your email for the reset link.",
       );
     } catch (error) {
-      setErrorMessage(error?.message || "Unable to start the reset flow. Please try again.");
+      toast.error(error?.message || "Unable to start the reset flow. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -73,9 +68,6 @@ function ForgotPasswordPage() {
               autoComplete="email"
               disabled={isSubmitting}
             />
-
-            <AuthFeedbackMessage message={statusMessage} tone="success" />
-            <AuthFeedbackMessage message={errorMessage} tone="error" />
 
             <div className="flex h-[3.125rem] items-center justify-between gap-[1.5rem] self-stretch">
               <span className="font-poppins text-[0.875rem] font-normal leading-[1.25rem] text-gray-600">
